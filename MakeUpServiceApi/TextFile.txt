@@ -1,0 +1,40 @@
+﻿Cloudinary api key, appsettings.json><
+
+
+google email, appsettings.json><
+
+get dto name: model
+post dto name: dto
+
+
+
+
+你还记得这个google map 是怎么用的吗
+是用在 travel fee 比如location klang 然后我在kepong 比如去20km 然后1km RM5
+Rm5 * 20 = 100 然后再加klang的area 是20= 120
+
+所以model加了area model
+
+customer:
+先选area 然后地址
+然后会计算
+customer是看不到kepong - klang的路线
+
+
+Status Code:
+200 : OK/成功
+201 : Created/已创建
+
+400 : Bad Request/请求错误
+401: Unauthorized/未授权
+403: Forbidden/禁止 (没有权限)
+404: Not Found/未找到
+405: Method Not Allowed/方法不允许
+408: Request Timeout/请求超时
+409: Conflict/冲突 (资源冲突)(例如重复创建)
+429: Too Many Requests/请求过多
+
+500: Internal Server Error/服务器内部错误
+504: Gateway Timeout/网关超时
+
+没有4xx的错误码: 402, 406, 410, 411, 412, 413, 414, 415, 416, 417, 418, 421, 422, 423, 424, 426, 428, 431, 451
