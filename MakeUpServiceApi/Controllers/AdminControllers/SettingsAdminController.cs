@@ -26,7 +26,28 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             var settings = await _db.SystemSettings.AsNoTracking().ToListAsync();
             return Ok(settings);
         }
-
+        [HttpGet("get-setting/{key}")]
+        public async Task<IActionResult> GetSettingByKey(string key)
+        {
+            if (string.IsNullOrEmpty(key))
+            {
+                return BadRequest(new
+                {
+                    error = "Invalid Key",
+                    message = "The key parameter cannot be null or empty."
+                });
+            }
+            var setting = await _db.SystemSettings.AsNoTracking().FirstOrDefaultAsync(s => s.Key.ToLower() == key.ToLower());
+            if (setting == null)
+            {
+                return NotFound(new
+                {
+                    error = "Setting Not Found",
+                    message = $"No setting found with the key '{key}'."
+                });
+            }
+            return Ok(setting);
+        }
         [HttpPost("create")]
         public async Task<IActionResult> CreateSetting([FromBody] SettingDto dto)
         {
@@ -66,8 +87,11 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     message = $"No setting found with the key '{dto.Key}'."
                 });
             }
-            existingSetting.Value = dto.Value;
-            if(!string.IsNullOrEmpty(dto.Description))
+            if (!string.IsNullOrEmpty(dto.Value))
+            {
+                existingSetting.Value = dto.Value;
+            }
+            if (!string.IsNullOrEmpty(dto.Description))
             {
                 existingSetting.Description = dto.Description;
             }
