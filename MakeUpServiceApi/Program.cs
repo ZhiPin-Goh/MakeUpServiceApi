@@ -39,7 +39,6 @@ builder.Services.AddProblemDetails();
 // 将接口和服务注册到依赖注入容器中
 builder.Services.AddTransient<ITokenService, TokenService>();
 builder.Services.AddTransient<IPhotoService, PhotoService>();
-builder.Services.AddTransient<IReviewService, ReviewService>();
 builder.Services.AddTransient<INotificationService, NotificationService>();
 builder.Services.AddTransient<ITravelFeeService, TravelFeeService>();
 builder.Services.AddTransient<IEmailService, EmailService>();
@@ -186,9 +185,10 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddHostedService<IdempotencyClearService>();
 builder.Services.AddHostedService<TokenClearService>();
 builder.Services.AddHostedService<AuditLogClearService>();
-builder.Services.AddHostedService<RemindersBookingService>();
+builder.Services.AddHostedService<ReminbersBookingService>();
 builder.Services.AddHostedService<TripRemindersService>();
 builder.Services.AddHostedService<ClearBookingService>();
+builder.Services.AddHostedService<ReminberCompleteService>();
 
 // Configure Entity Framework Core with SQL Server
 // 配置 Entity Framework Core 使用 SQL Server 数据库 

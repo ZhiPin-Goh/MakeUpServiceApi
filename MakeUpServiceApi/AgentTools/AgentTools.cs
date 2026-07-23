@@ -37,23 +37,7 @@ namespace MakeUpServiceApi.AgentTools
                             result = service
                         });
 
-                    case "getservicereview":
-                        int serviceID = int.Parse(call.Args["serviceID"].ToString());
-                        var reviews = await _db.Reviews.AsNoTracking()
-                            .Include(r => r.Booking)
-                            .ThenInclude(r => r.Service)
-                            .Where(r => r.Booking.Service.ServiceID == serviceID)
-                            .Select(r => new
-                            {
-                                r.Rating,
-                                r.Comment,
-                            }).Take(5).ToListAsync();
-                        return JsonSerializer.Serialize(new
-                        {
-                            tool = "GetServiceReview",
-                            result = reviews
-                        });
-
+                   
                     case "checkscheduleblocker":
                         var targetMonth = Convert.ToDateTime(call.Args["targetMonth"].ToString());
                         var blockers = await _db.ScheduleBlockers.AsNoTracking()

@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MakeUpServiceApi.BackgroundServices
 {
-    public class RemindersBookingService : BackgroundService
+    public class ReminbersBookingService : BackgroundService
     {
-        private readonly ILogger<RemindersBookingService> _logger;
+        private readonly ILogger<ReminbersBookingService> _logger;
         private readonly IServiceProvider _serviceProvider;
-        public RemindersBookingService(ILogger<RemindersBookingService> logger, IServiceProvider serviceProvider)
+        public ReminbersBookingService(ILogger<ReminbersBookingService> logger, IServiceProvider serviceProvider)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;

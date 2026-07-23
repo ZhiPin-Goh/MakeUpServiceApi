@@ -75,6 +75,23 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 data = services
             });
         }
+        [HttpGet("active-services")]
+        public async Task<IActionResult> GetActiveService()
+        {
+            var activeServices = await _db.Services
+                .Where(s => s.Status.ToLower() == "active")
+                .Select(s => new
+                {
+                    s.ServiceID,
+                    s.Name,
+                    s.ImageUrl,
+                    s.Price,
+                    s.Status
+                })
+                .ToListAsync();
+
+            return Ok(activeServices);
+        }
         [HttpGet("details/{id}")]
         public async Task<IActionResult> GetServiceByID(int id)
         {

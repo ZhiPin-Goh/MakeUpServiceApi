@@ -199,7 +199,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     });
                 }
                 // 2100 - 0259 is unavailable for booking
-                if(dto.AppointmentTime >= new TimeSpan(21, 0, 0) || dto.AppointmentTime < new TimeSpan(2, 59, 0))
+                if(dto.AppointmentTime >= new TimeSpan(21, 0, 0) || dto.AppointmentTime < new TimeSpan(3, 0, 0))
                 {
                     return BadRequest(new
                     {

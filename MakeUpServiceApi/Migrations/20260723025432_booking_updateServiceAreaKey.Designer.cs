@@ -4,6 +4,7 @@ using MakeUpServiceApi.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MakeUpServiceApi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723025432_booking_updateServiceAreaKey")]
+    partial class booking_updateServiceAreaKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -299,6 +302,49 @@ namespace MakeUpServiceApi.Migrations
                     b.ToTable("Notifications");
                 });
 
+            modelBuilder.Entity("MakeUpServiceApi.Models.Review", b =>
+                {
+                    b.Property<int>("ReviewID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReviewID"));
+
+                    b.Property<int>("BookingID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReviewToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("TokenExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ReviewID");
+
+                    b.HasIndex("BookingID")
+                        .IsUnique();
+
+                    b.ToTable("Reviews");
+                });
+
             modelBuilder.Entity("MakeUpServiceApi.Models.ScheduleBlocker", b =>
                 {
                     b.Property<int>("ScheduleBlockerID")
@@ -452,6 +498,17 @@ namespace MakeUpServiceApi.Migrations
                     b.Navigation("ServiceArea");
                 });
 
+            modelBuilder.Entity("MakeUpServiceApi.Models.Review", b =>
+                {
+                    b.HasOne("MakeUpServiceApi.Models.Booking", "Booking")
+                        .WithOne("Review")
+                        .HasForeignKey("MakeUpServiceApi.Models.Review", "BookingID")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
+                });
+
             modelBuilder.Entity("MakeUpServiceApi.Models.TokenActivity", b =>
                 {
                     b.HasOne("MakeUpServiceApi.Models.Admin", "Admin")
@@ -461,6 +518,11 @@ namespace MakeUpServiceApi.Migrations
                         .IsRequired();
 
                     b.Navigation("Admin");
+                });
+
+            modelBuilder.Entity("MakeUpServiceApi.Models.Booking", b =>
+                {
+                    b.Navigation("Review");
                 });
 
             modelBuilder.Entity("MakeUpServiceApi.Models.Service", b =>

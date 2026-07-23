@@ -13,7 +13,6 @@ namespace MakeUpServiceApi.Models
         }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Service> Services { get; set; }
-        public DbSet<Review> Reviews { get; set; }
         public DbSet<Admin> Admins { get; set; }
         public DbSet<TokenActivity> TokenActivities { get; set; }
         public DbSet<ServiceArea> ServiceAreas { get; set; }

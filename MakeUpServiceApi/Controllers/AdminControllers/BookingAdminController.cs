@@ -18,15 +18,13 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
     {
         private readonly AppDbContext _db;
         private readonly ILogger<BookingAdminController> _logger;
-        private readonly IReviewService _reviewService;
         private readonly ITravelFeeService _travelFeeService;
         private readonly IEmailService _emailService;
         private readonly IGoogleCalendarService _googleCalendarService;
-        public BookingAdminController(AppDbContext db, ILogger<BookingAdminController> logger, IReviewService reviewService, ITravelFeeService travelFeeService, IEmailService emailService, IGoogleCalendarService googleCalendarService)
+        public BookingAdminController(AppDbContext db, ILogger<BookingAdminController> logger, ITravelFeeService travelFeeService, IEmailService emailService, IGoogleCalendarService googleCalendarService)
         {
             _db = db;
             _logger = logger;
-            _reviewService = reviewService;
             _travelFeeService = travelFeeService;
             _emailService = emailService;
             _googleCalendarService = googleCalendarService;
@@ -89,26 +87,26 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
         [HttpGet("details/{id}")]
         public async Task<IActionResult> GetBookingByID(int id)
         {
-            var booking = await _db.Bookings
-                .Include(b => b.Service)
-                .Include(b => b.ServiceArea)
-                .Where(b => b.BookingID == id)
-                .Select(b => new
-                {
-                    BookingID = b.BookingID,
-                    Name = b.Name,
-                    Email = b.Email,
-                    PhoneNumber = b.PhoneNumber,
-                    AppointmentDate = b.AppointmentDate,
-                    AppointmentTime = b.AppointmentTime,
-                    Area = b.ServiceArea.Name,
-                    Address = b.LocationAddress,
-                    Service = b.Service.Name,
-                    TravelFee = b.TravelFee,
-                    TotalPrice = b.TotalPrice,
-                    Status = b.Status.ToString()
-                }).FirstOrDefaultAsync();
-            if (booking == null)
+            var bookingDetails = await _db.Bookings
+             .Where(b => b.BookingID == id)
+             .Select(b => new
+             {
+                 BookingID = b.BookingID,
+                 Name = b.Name,
+                 Email = b.Email,
+                 PhoneNumber = b.PhoneNumber,
+                 AppointmentDate = b.AppointmentDate,
+                 AppointmentTime = b.AppointmentTime,
+                 Area = b.ServiceArea.Name,
+                 Address = b.LocationAddress,
+                 Service = b.Service.Name,
+                 TravelFee = b.TravelFee,
+                 TotalPrice = b.TotalPrice,
+                 Status = b.Status.ToString()
+             })
+             .FirstOrDefaultAsync();
+
+            if (bookingDetails == null)
             {
                 return NotFound(new
                 {
@@ -116,7 +114,8 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     message = $"No booking found with BookingID {id}"
                 });
             }
-            return Ok(booking);
+
+            return Ok(bookingDetails);
         }
         [HttpPost("toggle-status")]
         public async Task<IActionResult> ToggleBookingStatus([FromBody] ToggleStatusDto dto)
@@ -176,7 +175,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
 
             // Google calendar function
             string googleEventID = string.Empty;
-            if(dto.Status == BookingStatus.Approved)
+            if (dto.Status == BookingStatus.Approved)
             {
                 try
                 {
@@ -188,7 +187,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     _logger.LogError(ex, "Error creating Google Calendar event for booking ID {BookingID}", existingBooking.BookingID);
                 }
             }
-            else if(dto.Status == BookingStatus.Rejected || dto.Status == BookingStatus.Canceled)
+            else if (dto.Status == BookingStatus.Rejected || dto.Status == BookingStatus.Canceled)
             {
                 if (!string.IsNullOrEmpty(existingBooking.GoogleEventID))
                 {
@@ -226,20 +225,12 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 }
 
             }
-            string reviewLink = string.Empty;
-            if (dto.Status == BookingStatus.Completed)
-            {
-                var link = await _reviewService.GenerateLinkForExistingReviewAsync(existingBooking.BookingID);
-                //await _reviewService.SendReviewLinkViaWhatsAppAsync(existingBooking.PhoneNumber, link);
-                reviewLink = $"Review link generated: {link}";
-            }
-
+          
             return Ok(new
             {
                 message = $"Booking status updated to {dto.Status}",
                 bookingID = existingBooking.BookingID,
                 eventID = googleEventID,
-                //reviewAction = reviewLink,
             });
         }
         [HttpPost("manual-booking")]
@@ -316,12 +307,13 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                         message = "Appointment date cannot be in the past"
                     });
                 }
-                if (dto.AppointmentTime > new TimeSpan(23, 59, 59) || dto.AppointmentTime < new TimeSpan(0, 0, 0))
+                // 21:00 - 02:59 is unavailable for booking
+                if (dto.AppointmentTime >= new TimeSpan(21, 0, 0) || dto.AppointmentTime < new TimeSpan(3, 0, 0))
                 {
                     return BadRequest(new
                     {
                         error = "Invalid appointment time",
-                        message = "Appointment time must be between 00:00 and 23:59"
+                        message = "Appointment time must be between 02:59 and 21:00"
                     });
                 }
                 decimal areaPrice = 0;
@@ -346,7 +338,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     }
                     areaPrice = existingArea.BasePrice;
                 }
-                if(dto.Pax < 1)
+                if (dto.Pax < 1)
                 {
                     return BadRequest(new
                     {
@@ -387,7 +379,12 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     Pax = dto.Pax,
                     Unit = !string.IsNullOrEmpty(dto.Unit) ? dto.Unit : null,
                 };
+
+
+
                 _db.Bookings.Add(newBooking);
+                await _db.SaveChangesAsync();
+
                 var responseObj = new
                 {
                     message = "Booking created successfully",
@@ -396,6 +393,19 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 idempotency.ResponseBody = JsonSerializer.Serialize(responseObj);
                 idempotency.Status = "Completed";
                 idempotency.ResponseCode = 200;
+
+                string googleEventID = string.Empty;
+                var serviceName = await _db.Services.FirstOrDefaultAsync(s => s.ServiceID == dto.ServiceID);
+                try
+                {
+                    googleEventID = await _googleCalendarService.CreateEventAsync(booking: newBooking, service: serviceName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error creating Google Calendar event for booking ID {BookingID}", newBooking.BookingID);
+                }
+                newBooking.GoogleEventID = googleEventID;
+
                 await _db.SaveChangesAsync();
 
                 await transaction.CommitAsync();

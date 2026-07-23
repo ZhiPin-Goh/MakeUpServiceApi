@@ -30,6 +30,20 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             }).ToListAsync();
             return Ok(areas);
         }
+        [HttpGet("active-areas")]
+        public async Task<IActionResult> GetActiveAreas()
+        {
+            var activeAreas = await _db.ServiceAreas
+                .Where(x => x.IsActive)
+                .Select(x => new
+                {
+                    x.AreaID,
+                    x.Name,
+                    x.BasePrice
+                })
+                .ToListAsync();
+            return Ok(activeAreas);
+        }
         [HttpPost("create")]
         public async Task<IActionResult> CreateArea(
             [FromHeader(Name ="X-Idempotency-Key")] string idempotencyKey,

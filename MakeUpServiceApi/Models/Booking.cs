@@ -1,4 +1,5 @@
 ﻿    using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MakeUpServiceApi.Models
 {
@@ -34,9 +35,9 @@ namespace MakeUpServiceApi.Models
         public decimal? TravelFee { get; set; }
         public decimal? TotalPrice { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public virtual Review? Review { get; set; }
         public int? AreaID { get; set; }
         public string? GoogleEventID { get; set; } // Store the Google Calendar Event ID
+        [ForeignKey("AreaID")]
         public virtual ServiceArea? ServiceArea { get; set; }
     }
 }

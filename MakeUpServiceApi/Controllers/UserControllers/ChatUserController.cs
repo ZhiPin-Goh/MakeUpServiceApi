@@ -97,9 +97,6 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("      → Retrieve all active makeup services with details");
             prompt.AppendLine("      → Use when: User asks about available services, pricing, or service options");
             prompt.AppendLine();
-            prompt.AppendLine("  2️⃣  GetServiceReview");
-            prompt.AppendLine("      → Get reviews and ratings (up to 5 recent reviews) for a specific service");
-            prompt.AppendLine("      → Use when: User wants to know about service quality, customer feedback, or ratings");
             prompt.AppendLine();
             prompt.AppendLine("  3️⃣  CheckScheduleBlocker");
             prompt.AppendLine("      → Check for blocked/unavailable dates in a specific month");
@@ -132,12 +129,6 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("  ✓ Confirm location/address");
             prompt.AppendLine("  ✓ Get their name and phone number");
             prompt.AppendLine();
-            prompt.AppendLine("STEP 2 - VERIFICATION & CALCULATION:");
-            prompt.AppendLine("  ✓ Call CheckScheduleBlocker for the requested month (check for blocked dates)");
-            prompt.AppendLine("  ✓ Call CheckBookingSchedule for the specific date (check availability)");
-            prompt.AppendLine("  ✓ Call CalculatePriceAndTravelFee to show final pricing breakdown");
-            prompt.AppendLine("  ✓ Call GetServiceReview to showcase Shirley's quality (optional but recommended)");
-            prompt.AppendLine();
             prompt.AppendLine("STEP 3 - CONFIRMATION:");
             prompt.AppendLine("  ✓ Show user the complete summary with:");
             prompt.AppendLine("    - Service name & description");
@@ -163,7 +154,6 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("  ✓ Provide service details and pricing");
             prompt.AppendLine("  ✓ Check availability and schedule");
             prompt.AppendLine("  ✓ Calculate travel fees based on location");
-            prompt.AppendLine("  ✓ Show customer reviews and ratings");
             prompt.AppendLine();
             prompt.AppendLine("❌ WHAT YOU CANNOT DO:");
             prompt.AppendLine("  ✗ Cancel existing bookings → Direct to WhatsApp");
@@ -292,18 +282,6 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                                 type = "OBJECT",
                                 properties = new { },
                                 required = new string[] { }
-                            }
-                        },
-                        // Method Get - GetServiceReview
-                        new {
-                            name = "GetServiceReview",
-                            description = "Get reviews and ratings for a specific makeup service. Returns the last 5 reviews.",
-                            parameters = new {
-                                type = "OBJECT",
-                                properties = new {
-                                    serviceID = new { type = "INTEGER", description = "The ID of the makeup service to get reviews for." }
-                                },
-                                required = new[] { "serviceID" }
                             }
                         },
                         // Method Get - CheckScheduleBlocker
