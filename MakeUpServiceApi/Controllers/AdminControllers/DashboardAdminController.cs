@@ -29,7 +29,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 .CountAsync(b => b.AppointmentDate.Date == today && b.Status == BookingStatus.Approved);
 
             var monthRevenus = await _db.Bookings.AsNoTracking()
-                .Where(b => b.AppointmentDate >= firstDayOfMonth && b.Status == BookingStatus.Approved)
+                .Where(b => b.AppointmentDate >= firstDayOfMonth && b.Status == BookingStatus.Completed)
                 .SumAsync(b => (decimal?)b.TotalPrice) ?? 0;
 
             var unreadFeedbackCount = await _db.Feedbacks.AsNoTracking()

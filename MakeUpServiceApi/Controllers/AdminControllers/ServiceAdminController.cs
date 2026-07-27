@@ -194,16 +194,8 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     });
                 }
                 string newImageUrl = "https://glam.ph/cdn/shop/articles/shutterstock_1408306232.jpg?v=1730275754"; // default image URL
-                if (dto.ImageUrl != null)
+                if (dto.ImageUrl != null && dto.ImageUrl.Length > 0)
                 {
-                    if (dto.ImageUrl == null || dto.ImageUrl.Length == 0)
-                    {
-                        return BadRequest(new
-                        {
-                            error = "Image is required",
-                            message = "Please upload an image for the service."
-                        });
-                    }
                     var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif" };
                     var ext = Path.GetExtension(dto.ImageUrl.FileName).ToLowerInvariant();
                     if (string.IsNullOrEmpty(ext) || !allowedExtensions.Contains(ext))

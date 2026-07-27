@@ -70,7 +70,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 return Ok(new
                 {
                     message = "Travel fee calculated successfully.",
-                    travelFee = finalFee.TotalFee,
+                    travelFee = Math.Round(finalFee.TotalFee, 0, MidpointRounding.AwayFromZero),
                     distanceKm = Math.Round(finalFee.DistanceKm, 2)
                 });
             }

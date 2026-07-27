@@ -1,4 +1,4 @@
-﻿using MakeUpServiceApi.Interface;
+using MakeUpServiceApi.Interface;
 using MakeUpServiceApi.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -39,7 +39,14 @@ namespace MakeUpServiceApi.AgentTools
 
                    
                     case "checkscheduleblocker":
-                        var targetMonth = Convert.ToDateTime(call.Args["targetMonth"].ToString());
+                        if (!call.Args.TryGetValue("targetMonth", out var targetMonthObj) || !DateTime.TryParse(targetMonthObj.ToString(), out DateTime targetMonth))
+                        {
+                            return JsonSerializer.Serialize(new
+                            {
+                                tool = "CheckScheduleBlocker",
+                                error = "Invalid or missing 'targetMonth' parameter. Please use a valid date format like YYYY-MM-DD."
+                            });
+                        }
                         var blockers = await _db.ScheduleBlockers.AsNoTracking()
                             .Where(x => x.StartDate.Month == targetMonth.Month && x.StartDate.Year == targetMonth.Year)
                             .Select(x => new { x.StartDate, x.EndDate, x.Reason })
@@ -51,7 +58,14 @@ namespace MakeUpServiceApi.AgentTools
                         });
 
                     case "checkbookingschedule":
-                        var checkDate = Convert.ToDateTime(call.Args["date"].ToString());
+                        if (!call.Args.TryGetValue("date", out var dateObj) || !DateTime.TryParse(dateObj.ToString(), out DateTime checkDate))
+                        {
+                            return JsonSerializer.Serialize(new
+                            {
+                                tool = "CheckBookingSchedule",
+                                error = "Invalid or missing 'date' parameter. Please use a valid date format like YYYY-MM-DD."
+                            });
+                        }
                         var existingBooking = await _db.Bookings.AsNoTracking()
                             .Where(x => x.AppointmentDate.Date == checkDate.Date)
                             .Where(x => x.Status == BookingStatus.Pending || x.Status == BookingStatus.Approved)
@@ -64,8 +78,15 @@ namespace MakeUpServiceApi.AgentTools
                         });
 
                     case "calculatepriceandtravelfee":
-                        int reqServiceID = int.Parse(call.Args["serviceID"].ToString());
-                        string address = call.Args["address"].ToString();
+                        if (!call.Args.TryGetValue("serviceID", out var sIdObj) || !int.TryParse(sIdObj.ToString(), out int reqServiceID))
+                        {
+                            return JsonSerializer.Serialize(new { tool = "CalculatePriceAndTravelFee", error = "Invalid or missing 'serviceID'." });
+                        }
+                        if (!call.Args.TryGetValue("address", out var addrObj) || string.IsNullOrWhiteSpace(addrObj.ToString()))
+                        {
+                            return JsonSerializer.Serialize(new { tool = "CalculatePriceAndTravelFee", error = "Invalid or missing 'address'. Please ask the user for a full valid address." });
+                        }
+                        string address = addrObj.ToString();
 
                         var sercive = await _db.Services
                             .FirstOrDefaultAsync(s => s.ServiceID == reqServiceID && s.Status == "Active");
@@ -94,13 +115,22 @@ namespace MakeUpServiceApi.AgentTools
 
                     // Method post
                     case "createbooking":
+                        if (!call.Args.TryGetValue("appointmentDate", out var appDateObj) || !DateTime.TryParse(appDateObj.ToString(), out DateTime appDate))
+                        {
+                            return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Invalid or missing 'appointmentDate'. Please use format YYYY-MM-DD HH:mm:ss." });
+                        }
+                        if (!call.Args.TryGetValue("serviceID", out var bookSIdObj) || !int.TryParse(bookSIdObj.ToString(), out int bookServiceID))
+                        {
+                            return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Invalid or missing 'serviceID'." });
+                        }
+                        
                         var newBooking = new Booking
                         {
-                            Name = call.Args["name"].ToString(),
-                            PhoneNumber = call.Args["phoneNumber"].ToString(),
-                            AppointmentDate = Convert.ToDateTime(call.Args["appointmentDate"].ToString()),
-                            LocationAddress = call.Args["locationAddress"].ToString(),
-                            ServiceID = Convert.ToInt32(call.Args["serviceID"].ToString()),
+                            Name = call.Args.GetValueOrDefault("name")?.ToString() ?? "",
+                            PhoneNumber = call.Args.GetValueOrDefault("phoneNumber")?.ToString() ?? "",
+                            AppointmentDate = appDate,
+                            LocationAddress = call.Args.GetValueOrDefault("locationAddress")?.ToString() ?? "",
+                            ServiceID = bookServiceID,
                             Status = BookingStatus.Pending,
                             CreatedAt = DateTime.Now
                         };

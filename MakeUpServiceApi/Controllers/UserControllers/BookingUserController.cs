@@ -177,8 +177,8 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = "Appointment date must be in the future"
                     });
                 }
-                var minimumBookingDate = _db.SystemSettings.Find("MinimumBookingDate");
-                var selectedBookingDate = minimumBookingDate != null ? DateTime.Parse(minimumBookingDate.Value) : DateTime.Now.AddDays(2);
+                var minimumBookingDate = _db.SystemSettings.Find("MinimumBookingDate"); // Value in days
+                var selectedBookingDate = minimumBookingDate != null ? DateTime.Now.AddDays(int.Parse(minimumBookingDate.Value)) : DateTime.Now.AddDays(2);
                 if (dto.AppointmentDate < selectedBookingDate)
                 {
                     return BadRequest(new
@@ -188,8 +188,8 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     });
                 }
 
-                var maximumBookingDate = _db.SystemSettings.Find("MaximumBookingDate");
-                var selectedMaximumBookingDate = maximumBookingDate != null ? DateTime.Parse(maximumBookingDate.Value) : DateTime.Now.AddMonths(3);
+                var maximumBookingDate = _db.SystemSettings.Find("MaximumBookingDate"); // Value in days
+                var selectedMaximumBookingDate = maximumBookingDate != null ? DateTime.Now.AddDays(int.Parse(maximumBookingDate.Value)) : DateTime.Now.AddMonths(3);
                 if (dto.AppointmentDate > selectedMaximumBookingDate)
                 {
                     return BadRequest(new

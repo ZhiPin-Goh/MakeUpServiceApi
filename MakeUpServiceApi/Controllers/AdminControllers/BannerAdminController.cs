@@ -31,35 +31,12 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     b.BannerID,
                     b.Title,
                     b.ImageUrl,
+                    TargetUrl = b.TargetUrl,
+                    b.SortOrder,
                     Status = b.IsActive ? "Active" : "Inactive",
                 })
                 .ToListAsync();
             return Ok(banners);
-        }
-        [HttpGet("getbanner/{id}")]
-        public async Task<IActionResult> GetBannerByID(int id)
-        {
-            var banner = await _db.Banners.AsNoTracking()
-                .Where(b => b.BannerID == id)
-                .Select(b => new
-                {
-                    b.BannerID,
-                    b.Title,
-                    b.ImageUrl,
-                    b.TargetUrl,
-                    b.SortOrder,
-                    Status = b.IsActive ? "Active" : "Inactive",
-                })
-                .FirstOrDefaultAsync();
-            if (banner == null)
-            {
-                return NotFound(new
-                {
-                    error = "Banner not found",
-                    message = $"No banner found with ID {id}."
-                });
-            }
-            return Ok(banner);
         }
         [HttpPost("create")]
         public async Task<IActionResult> CreateBanners(
@@ -307,6 +284,49 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 return Ok(new
                 {
                     message = "Banner updated successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    error = "Internal Server Error",
+                    message = ex.Message
+                });
+            }
+        }
+        public class UpdateBannerSortOrderDto
+        {
+            public int BannerID { get; set; }
+            public int SortOrder { get; set; }
+        }
+        [HttpPost("update-sort-order")]
+        public async Task<IActionResult> UpdateBannerSortOrder([FromBody] List<UpdateBannerSortOrderDto> sortOrders)
+        {
+            try
+            {
+                if (sortOrders == null || !sortOrders.Any())
+                {
+                    return BadRequest(new
+                    {
+                        error = "Invalid data",
+                        message = "Please provide valid sort order data."
+                    });
+                }
+                var bannerIds = sortOrders.Select(s => s.BannerID).ToList();
+                var banners = await _db.Banners.Where(b => bannerIds.Contains(b.BannerID)).ToListAsync();
+                foreach (var sortOrder in sortOrders)
+                {
+                    var banner = banners.FirstOrDefault(b => b.BannerID == sortOrder.BannerID);
+                    if (banner != null)
+                    {
+                        banner.SortOrder = sortOrder.SortOrder;
+                    }
+                }
+                await _db.SaveChangesAsync();
+                return Ok(new
+                {
+                    message = "Banner sort order updated successfully"
                 });
             }
             catch (Exception ex)

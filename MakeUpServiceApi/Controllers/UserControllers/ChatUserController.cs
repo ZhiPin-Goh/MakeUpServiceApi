@@ -126,7 +126,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("STEP 1 - REQUIREMENT GATHERING (Do this step-by-step, NOT all at once!):");
             prompt.AppendLine("  ✓ Ask what service they're interested in (use GetService if unsure)");
             prompt.AppendLine("  ✓ Ask for their preferred date and time");
-            prompt.AppendLine("  ✓ Confirm location/address");
+            prompt.AppendLine("  ✓ Confirm full location/address. If the address is too brief (e.g., just 'KL'), politely ask for the full specific address before calculating fees.");
             prompt.AppendLine("  ✓ Get their name and phone number");
             prompt.AppendLine();
             prompt.AppendLine("STEP 3 - CONFIRMATION:");
@@ -135,7 +135,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("    - Date & time");
             prompt.AppendLine("    - Location");
             prompt.AppendLine("    - Price breakdown (Service Price | Travel Fee | Total)");
-            prompt.AppendLine("  ✓ Ask user to confirm ALL details");
+            prompt.AppendLine("  ✓ Ask user to explicitly confirm ALL details AND the final total price before you create the booking.");
             prompt.AppendLine();
             prompt.AppendLine("STEP 4 - BOOKING CREATION:");
             prompt.AppendLine("  ✓ Once confirmed, call CreateBooking with complete information");
@@ -348,7 +348,9 @@ namespace MakeUpServiceApi.Controllers.UserControllers
 
                 var contentsList = (List<object>)geminiPayload.contents;
 
-                foreach (var msg in request.History)
+                // Limit history to the last 20 messages to prevent token overflow
+                var recentHistory = request.History.TakeLast(20).ToList();
+                foreach (var msg in recentHistory)
                 {
                     contentsList.Add(new
                     {

@@ -21,7 +21,6 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
         public async Task<IActionResult> GetScheduleBlockers()
         {
             var scheduleBlockers = await _db.ScheduleBlockers.AsNoTracking()
-                .Where(x => x.StartDate >= DateTime.Now)
                 .ToListAsync();
             return Ok(scheduleBlockers);
         }

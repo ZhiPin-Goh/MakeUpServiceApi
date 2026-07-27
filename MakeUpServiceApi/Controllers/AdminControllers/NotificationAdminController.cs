@@ -29,7 +29,6 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
         public async Task<IActionResult> GetUnreadNotifications()
         {
             var unreadNotifications = await _db.Notifications.AsNoTracking()
-                .Where(n => !n.IsRead)
                 .Take(50)
                 .OrderByDescending(n => n.CreatedAt)
                  .Select(n => new
@@ -40,7 +39,8 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                      Message = n.Message.Length > 50 ? n.Message.Substring(0, 50) + "..." : n.Message,
                      n.Type,
                      n.CreatedAt,
-                     n.RelatedID
+                     n.RelatedID,
+                     IsRead = n.IsRead ? true : false,
                  }).ToListAsync();
             return Ok(unreadNotifications);
         }

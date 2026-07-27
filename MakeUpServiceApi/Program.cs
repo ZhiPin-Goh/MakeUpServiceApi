@@ -189,6 +189,7 @@ builder.Services.AddHostedService<ReminbersBookingService>();
 builder.Services.AddHostedService<TripRemindersService>();
 builder.Services.AddHostedService<ClearBookingService>();
 builder.Services.AddHostedService<ReminberCompleteService>();
+builder.Services.AddHostedService<ClearNotifyService>();
 
 // Configure Entity Framework Core with SQL Server
 // 配置 Entity Framework Core 使用 SQL Server 数据库 
