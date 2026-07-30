@@ -28,7 +28,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             _serviceScopeFactory = serviceScopeFactory;
             _logger = logger;
         }
-        [HttpGet("completelocation")]
+        [HttpGet("complete-location")]
         public async Task<IActionResult> GetCompleteLocation([FromQuery] string query)
         {
             if (string.IsNullOrWhiteSpace(query) || query.Length < 3)
@@ -61,7 +61,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                 });
             }
         }
-        [HttpGet("bookingprice")]
+        [HttpPost("booking-price")]
         public async Task<IActionResult> GetBookingPrice([FromBody] BookingPriceDto dto)
         {
             try
@@ -75,16 +75,28 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = $"No service found with ServiceID: {dto.ServiceID}"
                     });
                 }
+                var area = await _db.ServiceAreas.AsNoTracking().FirstOrDefaultAsync(a => a.AreaID == dto.AreaID);
+                if (area == null)
+                {
+                    return NotFound(new
+                    {
+                        error = "Area not found",
+                        message = $"No area found with AreaID: {dto.AreaID}"
+                    });
+                }
+
                 var travelFee = await _travelFeeService.CalculateFeeAsync(dto.AreaID, dto.LocationAddress);
-                decimal rawTotalPrice = Convert.ToDecimal(service.Price) + travelFee.TotalFee;
+                var baseServicePrice = Convert.ToDecimal(service.Price * dto.Pax);
+                decimal rawTotalPrice = baseServicePrice + travelFee.TotalFee;
                 decimal totalPrice = Math.Round(rawTotalPrice, 0, MidpointRounding.AwayFromZero);
 
                 return Ok(new
                 {
                     serviceName = service.Name,
-                    basePrice = service.Price,
+                    serviceBasePrice = service.Price,
+                    areaBasePrice = area.BasePrice,
                     distanceKm = travelFee.DistanceKm,
-                    travelFee = travelFee.TotalFee,
+                    totalTravelFee = travelFee.TotalFee,
                     totalPrice = totalPrice,
                 });
             }
@@ -128,7 +140,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     });
                 }
             }
-            var rawHash = "AreaCreate:" + JsonSerializer.Serialize(dto);
+            var rawHash = "SubmitBooking:" + JsonSerializer.Serialize(dto);
             var idempotency = new Idempotency
             {
                 IdempotencyKey = idempotencyKey,
@@ -216,7 +228,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = $"No service found with ServiceID {dto.ServiceID}"
                     });
                 }
-                decimal areaPrice = 0;
+                //decimal areaPrice = 0;
                 if (dto.AreaID.HasValue)
                 {
                     var existingArea = await _db.ServiceAreas.FirstOrDefaultAsync(a => a.AreaID == dto.AreaID.Value && a.IsActive == true);
@@ -236,13 +248,13 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                             message = $"You selected '{existingArea.Name}', but your address does not match this area. Please select the correct service area."
                         });
                     }
-                    areaPrice = existingArea.BasePrice;
+                    //areaPrice = existingArea.BasePrice;
                 }
 
                 var travelFee = await _travelFeeService.CalculateFeeAsync(clientAddress: dto.LocationAddress, areaID: dto.AreaID);
 
                 decimal baseServicePrice = Convert.ToDecimal(existingService.Price * dto.Pax);
-                decimal rawTotalPrice = baseServicePrice + travelFee.TotalFee + areaPrice;
+                decimal rawTotalPrice = baseServicePrice + travelFee.TotalFee;
                 decimal totalPrice = Math.Round(rawTotalPrice, 0, MidpointRounding.AwayFromZero);
 
                 var booking = new Booking

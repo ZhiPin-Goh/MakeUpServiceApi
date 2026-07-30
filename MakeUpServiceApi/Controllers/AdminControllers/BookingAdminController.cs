@@ -155,16 +155,17 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
 
             // checking if the booking is being approved, we need to check for conflicts
             // 检查是否有冲突的预约
-            var currentDate = DateTime.Now;
-            if (dto.Status == BookingStatus.Completed && existingBooking.AppointmentDate > currentDate)
+            var currentDateTime = DateTime.Now;
+            if (dto.Status == BookingStatus.Completed && existingBooking.AppointmentDate > currentDateTime  && existingBooking.AppointmentTime > currentDateTime.TimeOfDay)
             {
                 return BadRequest(new
                 {
                     error = "Invalid status change",
-                    message = $"Cannot mark booking as completed before the appointment date"
+                    message = "Cannot mark a future booking as completed."
                 });
             }
-            if (dto.Status == BookingStatus.Rejected && existingBooking.AppointmentDate < currentDate)
+            
+            if (dto.Status == BookingStatus.Rejected && existingBooking.AppointmentDate < currentDateTime.Date)
             {
                 return BadRequest(new
                 {
@@ -358,7 +359,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
 
                 var travelFee = await _travelFeeService.CalculateFeeAsync(dto.AreaID, dto.LocationAddress);
                 decimal baseServicePrice = Convert.ToDecimal(existingService.Price * dto.Pax);
-                decimal rawTotalPrice = baseServicePrice + travelFee.TotalFee + areaPrice;
+                decimal rawTotalPrice = baseServicePrice + travelFee.TotalFee;
                 decimal totalPrice = Math.Round(rawTotalPrice, 0, MidpointRounding.AwayFromZero);
 
                 var newBooking = new Booking

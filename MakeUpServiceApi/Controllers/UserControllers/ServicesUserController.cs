@@ -21,6 +21,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                 .Where(x => x.Status == "Active")
                 .Select(x => new
                 {
+                    x.ServiceID,
                     x.Name,
                     x.ImageUrl,
                     x.Price,
@@ -28,7 +29,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                 .ToListAsync();
             return Ok(services);
         }
-        [HttpGet("randomservices")]
+        [HttpGet("random-services")]
         public async Task<IActionResult> GetRandomServices()
         {
             var services = await _db.Services.AsNoTracking()
@@ -36,11 +37,12 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                 .OrderBy(x => Guid.NewGuid())
                 .Select(x => new
                 {
+                    x.ServiceID,
                     x.Name,
                     x.ImageUrl,
                     x.Price,
                 })
-                .Take(5)
+                .Take(6)
                 .ToListAsync();
             return Ok(services);
         }

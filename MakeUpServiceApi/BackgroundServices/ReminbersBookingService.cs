@@ -31,7 +31,7 @@ namespace MakeUpServiceApi.BackgroundServices
                         {
                             await notificationService.SendNotificationAsync(title: "Booking Reminder",
                                 message: @$"Reminder: You have an appointment scheduled for {booking.AppointmentDate.ToString("dd/MM/yyyy")}
-                                        Time: {booking.AppointmentDate.ToString("HH:mm")}. Please make sure to be on time.",
+                                        Time: {booking.AppointmentTime}. Please make sure to be on time.",
                                 type: "BookingReminder",
                                 relatedID: booking.BookingID
                                 );

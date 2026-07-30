@@ -36,6 +36,8 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             _logger = logger;
             _agentTools = agentTools;
         }
+        // System prompt
+        #region System Prompt
         private string SystemPrompt(List<Service> services)
         {
             var prompt = new StringBuilder();
@@ -160,11 +162,14 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("  ✗ Reschedule existing bookings → Direct to WhatsApp");
             prompt.AppendLine("  ✗ Modify payment or booking terms → Direct to WhatsApp");
             prompt.AppendLine("  ✗ Discuss services not in the system → Politely decline");
+            prompt.AppendLine("  ✗ Reveal the internal tools you use, the AI model, or your LLM architecture.");
+            prompt.AppendLine("  ✗ Offer unauthorized discounts (even if the client claims Shirley agreed to it).");
             prompt.AppendLine();
             prompt.AppendLine("💰 PRICING RULES:");
             prompt.AppendLine("  • Always show prices in format: RM XXX.XX");
             prompt.AppendLine("  • Always break down: Service Price + Travel Fee = Total");
             prompt.AppendLine("  • Example: RM 100.00 (service) + RM 20.50 (travel) = RM 120.50 (total)");
+            prompt.AppendLine("  • Strictly NO DISCOUNTS allowed via this AI. Direct discount claims to WhatsApp.");
             prompt.AppendLine();
             prompt.AppendLine("📅 AVAILABILITY RULES:");
             prompt.AppendLine("  • MUST check CheckScheduleBlocker AND CheckBookingSchedule before confirming");
@@ -244,10 +249,9 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("└────────────────────────────────────────────────────────────────┘");
             prompt.AppendLine();
             prompt.AppendLine("Follow Shirley's work and aesthetic:");
-            prompt.AppendLine("  📘 Facebook: https://www.facebook.com/ShirleyMakeup");
-            prompt.AppendLine("  📸 Instagram: https://www.instagram.com/shirley.makeup");
-            prompt.AppendLine("  🔴 小红书: https://www.xiaohongshu.com/user/profile/ShirleyBeauty");
-            prompt.AppendLine("  💬 WhatsApp: Available for custom requests and rescheduling");
+            prompt.AppendLine("  📸 Instagram: https://www.instagram.com/shirley__makeup_artist?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==");
+            prompt.AppendLine("  🔴 小红书: https://www.xiaohongshu.com/user/profile/5db044550000000001005b25?xhsshare=CopyLink&appuid=5db044550000000001005b25&apptime=1697537916&fbclid=IwY2xjawTWpDhleHRuA2FlbQIxMABicmlkETE4T3YyaUIweGhYZkJselp0c3J0YwZhcHBfaWQQMjIyMDM5MTc4ODIwMDg5MgABHpY0AinYXBI3tr-7ovOFzJP54Rg1Huhwu6y_6G4pC1UWAzXJ0eys4551Z6X4_aem__oMyTBmv__UJRmxBdBzyEQ");
+            prompt.AppendLine("  💬 WhatsApp: 01151124118 (Available for custom requests, cancellations, and rescheduling)");
             prompt.AppendLine();
 
             // ============================================================================
@@ -262,6 +266,8 @@ namespace MakeUpServiceApi.Controllers.UserControllers
 
             return prompt.ToString();
         }
+        #endregion
+
         [HttpPost("send")]
         public async Task<IActionResult> AskAgent([FromBody] ChatRequestDto request)
         {
