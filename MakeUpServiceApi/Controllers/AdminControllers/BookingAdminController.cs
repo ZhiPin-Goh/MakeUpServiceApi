@@ -61,7 +61,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             var bookings = await query
                 .Include(b => b.Service)
                 .Include(b => b.ServiceArea)
-                .OrderByDescending(b => b.AppointmentDate)
+                .OrderByDescending(b => b.BookingID)
                 .Skip((model.PageNumber - 1) * model.PageSize)
                 .Take(model.PageSize)
                 .Select(b => new
@@ -156,7 +156,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             // checking if the booking is being approved, we need to check for conflicts
             // 检查是否有冲突的预约
             var currentDateTime = DateTime.Now;
-            if (dto.Status == BookingStatus.Completed && existingBooking.AppointmentDate > currentDateTime  && existingBooking.AppointmentTime > currentDateTime.TimeOfDay)
+            if (dto.Status == BookingStatus.Completed && existingBooking.AppointmentDate > currentDateTime && existingBooking.AppointmentTime > currentDateTime.TimeOfDay)
             {
                 return BadRequest(new
                 {
@@ -164,7 +164,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     message = "Cannot mark a future booking as completed."
                 });
             }
-            
+
             if (dto.Status == BookingStatus.Rejected && existingBooking.AppointmentDate < currentDateTime.Date)
             {
                 return BadRequest(new
@@ -226,7 +226,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 }
 
             }
-          
+
             return Ok(new
             {
                 message = $"Booking status updated to {dto.Status}",
@@ -515,6 +515,41 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 </body>
                 </html>";
             return emailBody;
+        }
+        [HttpPost("update-travel-fee")]
+        public async Task<IActionResult> UpdateTravelFee([FromBody] UpdateTravelFeeDto dto)
+        {
+            var existingBooking = await _db.Bookings.FirstOrDefaultAsync(b => b.BookingID == dto.BookingID);
+            if (existingBooking == null)
+            {
+                return NotFound(new { error = "Booking not found" });
+            }
+            if (dto.NewTravelFee < 0)
+            {
+                return BadRequest(new { error = "Travel fee cannot be negative" });
+            }
+
+            //重新计算总费用 
+            // Re-calculate total fee based on the new travel fee
+            var service = await _db.Services.FirstOrDefaultAsync(s => s.ServiceID == existingBooking.ServiceID);
+            if (service == null)
+            {
+                return NotFound(new { error = "Service not found" });
+            }
+
+            decimal servicePrice = Convert.ToDecimal(service.Price);
+            servicePrice = servicePrice * existingBooking.Pax;
+            decimal BaseTotal = servicePrice + dto.NewTravelFee;
+
+            existingBooking.TravelFee = dto.NewTravelFee;
+            existingBooking.TotalPrice = BaseTotal;
+
+            await _db.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Travel fee updated successfully",
+            });
         }
     }
 }

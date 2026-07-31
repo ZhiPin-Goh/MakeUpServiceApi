@@ -99,6 +99,9 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("      → Retrieve all active makeup services with details");
             prompt.AppendLine("      → Use when: User asks about available services, pricing, or service options");
             prompt.AppendLine();
+            prompt.AppendLine("  2️⃣  GetArea");
+            prompt.AppendLine("      → Retrieve all active service areas and their base prices");
+            prompt.AppendLine("      → Use when: User asks about covered locations or service areas");
             prompt.AppendLine();
             prompt.AppendLine("  3️⃣  CheckScheduleBlocker");
             prompt.AppendLine("      → Check for blocked/unavailable dates in a specific month");
@@ -126,10 +129,10 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("└────────────────────────────────────────────────────────────────┘");
             prompt.AppendLine();
             prompt.AppendLine("STEP 1 - REQUIREMENT GATHERING (Do this step-by-step, NOT all at once!):");
-            prompt.AppendLine("  ✓ Ask what service they're interested in (use GetService if unsure)");
+            prompt.AppendLine("  ✓ Ask what service they're interested in and for how many pax (people)");
             prompt.AppendLine("  ✓ Ask for their preferred date and time");
-            prompt.AppendLine("  ✓ Confirm full location/address. If the address is too brief (e.g., just 'KL'), politely ask for the full specific address before calculating fees.");
-            prompt.AppendLine("  ✓ Get their name and phone number");
+            prompt.AppendLine("  ✓ Confirm full location/address and ask which area it is in (use GetArea to check supported areas). If the address is too brief (e.g., just 'KL'), politely ask for the full specific address before calculating fees.");
+            prompt.AppendLine("  ✓ Get their name, email address, and phone number");
             prompt.AppendLine();
             prompt.AppendLine("STEP 3 - CONFIRMATION:");
             prompt.AppendLine("  ✓ Show user the complete summary with:");
@@ -290,6 +293,16 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                                 required = new string[] { }
                             }
                         },
+                        // Method Get - GetArea
+                        new {
+                            name = "GetArea",
+                            description = "Retrieve a list of all active service areas and their base prices.",
+                            parameters = new {
+                                type = "OBJECT",
+                                properties = new { },
+                                required = new string[] { }
+                            }
+                        },
                         // Method Get - CheckScheduleBlocker
                         new {
                             name = "CheckScheduleBlocker",
@@ -322,9 +335,11 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                                 type = "OBJECT",
                                 properties = new {
                                     serviceID = new { type = "INTEGER", description = "The ID of the makeup service." },
-                                    address = new { type = "STRING", description = "The customer's full location address." }
+                                    address = new { type = "STRING", description = "The customer's full location address." },
+                                    pax = new { type = "INTEGER", description = "Number of people needing the service." },
+                                    areaID = new { type = "INTEGER", description = "The ID of the service area." }
                                 },
-                                required = new[] { "serviceID", "address" }
+                                required = new[] { "serviceID", "address", "pax" }
                             }
                         },
                         // Method Post - CreateBooking
@@ -335,12 +350,15 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                                 type = "OBJECT",
                                 properties = new {
                                     name = new { type = "STRING", description = "Customer's full name." },
+                                    email = new { type = "STRING", description = "Customer's email address." },
                                     phoneNumber = new { type = "STRING", description = "Customer's phone number." },
                                     appointmentDate = new { type = "STRING", description = "The desired appointment date and time (format: YYYY-MM-DD HH:mm:ss)." },
                                     locationAddress = new { type = "STRING", description = "The customer's service location address." },
-                                    serviceID = new { type = "INTEGER", description = "The ID of the makeup service to book." }
+                                    serviceID = new { type = "INTEGER", description = "The ID of the makeup service to book." },
+                                    pax = new { type = "INTEGER", description = "Number of people needing the service." },
+                                    areaID = new { type = "INTEGER", description = "The ID of the service area." }
                                 },
-                                required = new[] { "name", "phoneNumber", "appointmentDate", "locationAddress", "serviceID" }
+                                required = new[] { "name", "email", "phoneNumber", "appointmentDate", "locationAddress", "serviceID", "pax" }
                             }
                         }
                     }

@@ -37,7 +37,17 @@ namespace MakeUpServiceApi.AgentTools
                             result = service
                         });
 
-                   
+                    case "getarea":
+                        var areas = await _db.ServiceAreas.AsNoTracking()
+                            .Where(x => x.IsActive)
+                            .Select(s => new { s.AreaID, s.Name, s.BasePrice })
+                            .ToListAsync();
+                        return JsonSerializer.Serialize(new
+                        {
+                            tool = "GetArea",
+                            result = areas
+                        });
+
                     case "checkscheduleblocker":
                         if (!call.Args.TryGetValue("targetMonth", out var targetMonthObj) || !DateTime.TryParse(targetMonthObj.ToString(), out DateTime targetMonth))
                         {
@@ -86,6 +96,14 @@ namespace MakeUpServiceApi.AgentTools
                         {
                             return JsonSerializer.Serialize(new { tool = "CalculatePriceAndTravelFee", error = "Invalid or missing 'address'. Please ask the user for a full valid address." });
                         }
+                        if (!call.Args.TryGetValue("pax", out var cPaxObj) || !int.TryParse(cPaxObj.ToString(), out int cPax)) cPax = 1;
+                        
+                        int? parsedAreaID = null;
+                        if (call.Args.TryGetValue("areaID", out var aIdObj) && int.TryParse(aIdObj.ToString(), out int aId))
+                        {
+                            parsedAreaID = aId;
+                        }
+
                         string address = addrObj.ToString();
 
                         var sercive = await _db.Services
@@ -97,8 +115,10 @@ namespace MakeUpServiceApi.AgentTools
                                 error = "Service not found or inactive."
                             });
 
-                        var travelFee = await _travelFeeService.CalculateFeeAsync(null, address);
-                        decimal totalPrice = Convert.ToDecimal(sercive.Price) + travelFee.TotalFee;
+                        var travelFee = await _travelFeeService.CalculateFeeAsync(parsedAreaID, address);
+                        decimal basePrice = Convert.ToDecimal(sercive.Price * cPax);
+                        decimal rawTotalPrice = basePrice + travelFee.TotalFee;
+                        decimal totalPrice = Math.Round(rawTotalPrice, 0, MidpointRounding.AwayFromZero);
 
                         return JsonSerializer.Serialize(new
                         {
@@ -108,6 +128,7 @@ namespace MakeUpServiceApi.AgentTools
                                 ServiceID = sercive.ServiceID,
                                 ServiceName = sercive.Name,
                                 ServicePrice = sercive.Price,
+                                Pax = cPax,
                                 TravelFee = travelFee.TotalFee,
                                 TotalPrice = totalPrice
                             }
@@ -123,14 +144,40 @@ namespace MakeUpServiceApi.AgentTools
                         {
                             return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Invalid or missing 'serviceID'." });
                         }
+                        if (!call.Args.TryGetValue("email", out var emailObj) || string.IsNullOrWhiteSpace(emailObj.ToString()))
+                        {
+                            return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Invalid or missing 'email'. Please ask the user for their email address." });
+                        }
+                        if (!call.Args.TryGetValue("pax", out var bPaxObj) || !int.TryParse(bPaxObj.ToString(), out int bPax)) bPax = 1;
                         
+                        int? bookAreaID = null;
+                        if (call.Args.TryGetValue("areaID", out var bAreaIdObj) && int.TryParse(bAreaIdObj.ToString(), out int bAId))
+                        {
+                            bookAreaID = bAId;
+                        }
+
+                        var serciveToBook = await _db.Services.FirstOrDefaultAsync(s => s.ServiceID == bookServiceID && s.Status == "Active");
+                        if (serciveToBook == null) return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Service not found or inactive." });
+
+                        string locAddress = call.Args.GetValueOrDefault("locationAddress")?.ToString() ?? "";
+                        var travelFeeToBook = await _travelFeeService.CalculateFeeAsync(bookAreaID, locAddress);
+                        decimal basePriceToBook = Convert.ToDecimal(serciveToBook.Price * bPax);
+                        decimal totalPriceToBook = Math.Round(basePriceToBook + travelFeeToBook.TotalFee, 0, MidpointRounding.AwayFromZero);
+
                         var newBooking = new Booking
                         {
                             Name = call.Args.GetValueOrDefault("name")?.ToString() ?? "",
+                            Email = emailObj.ToString(),
                             PhoneNumber = call.Args.GetValueOrDefault("phoneNumber")?.ToString() ?? "",
-                            AppointmentDate = appDate,
-                            LocationAddress = call.Args.GetValueOrDefault("locationAddress")?.ToString() ?? "",
+                            AppointmentDate = appDate.Date,
+                            AppointmentTime = appDate.TimeOfDay,
+                            LocationAddress = locAddress,
                             ServiceID = bookServiceID,
+                            AreaID = bookAreaID,
+                            Pax = bPax,
+                            DistanceKm = travelFeeToBook.DistanceKm,
+                            TravelFee = travelFeeToBook.TotalFee,
+                            TotalPrice = totalPriceToBook,
                             Status = BookingStatus.Pending,
                             CreatedAt = DateTime.Now
                         };
