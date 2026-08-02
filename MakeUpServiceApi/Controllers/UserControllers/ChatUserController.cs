@@ -131,8 +131,13 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("STEP 1 - REQUIREMENT GATHERING (Do this step-by-step, NOT all at once!):");
             prompt.AppendLine("  ✓ Ask what service they're interested in and for how many pax (people)");
             prompt.AppendLine("  ✓ Ask for their preferred date and time");
-            prompt.AppendLine("  ✓ Confirm full location/address and ask which area it is in (use GetArea to check supported areas). If the address is too brief (e.g., just 'KL'), politely ask for the full specific address before calculating fees.");
+            prompt.AppendLine("  ✓ Confirm full location/address and ask which area it is in (use GetArea to check supported areas).");
+            prompt.AppendLine("      - IMPORTANT: The full address MUST contain the name of the area (e.g., if area is 'Puchong', the address must say 'Puchong').");
+            prompt.AppendLine("      - If the address is too brief (e.g., just 'KL'), politely ask for the full specific address before calculating fees.");
             prompt.AppendLine("  ✓ Get their name, email address, and phone number");
+            prompt.AppendLine("      - Phone format: valid Malaysian mobile number (e.g., 011.......)");
+            prompt.AppendLine("      - Email format: valid email structure (e.g., example@domain.com)");
+            prompt.AppendLine("      - Time limits: only between 03:00 and 20:59");
             prompt.AppendLine();
             prompt.AppendLine("STEP 3 - CONFIRMATION:");
             prompt.AppendLine("  ✓ Show user the complete summary with:");
