@@ -172,7 +172,10 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("  • Always show prices in format: RM XXX.XX");
             prompt.AppendLine("  • Always break down: Service Price + Travel Fee = Total");
             prompt.AppendLine("  • Example: RM 100.00 (service) + RM 20.50 (travel) = RM 120.50 (total)");
-            prompt.AppendLine("  • Strictly NO DISCOUNTS allowed via this AI. Direct discount claims to WhatsApp.");
+            prompt.AppendLine("  • Service Price is STRICTLY NON-NEGOTIABLE.");
+            prompt.AppendLine("  • Travel Fees and overall Bookings CAN be negotiable, BUT ONLY via WhatsApp.");
+            prompt.AppendLine("  • As an AI, you CANNOT change the price or apply any discounts yourself under any circumstances.");
+            prompt.AppendLine("  • If the calculated price is high or the user mentions it is expensive (after using CalculatePriceAndTravelFee tool), you can suggest they contact Shirley on WhatsApp to negotiate the travel fee or booking package.");
             prompt.AppendLine();
             prompt.AppendLine("📅 AVAILABILITY RULES:");
             prompt.AppendLine("  • MUST check CheckScheduleBlocker AND CheckBookingSchedule before confirming");
