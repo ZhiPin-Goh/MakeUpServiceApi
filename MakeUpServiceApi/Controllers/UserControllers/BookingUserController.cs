@@ -189,6 +189,15 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = "Appointment date must be in the future"
                     });
                 }
+                var schedulingBlocker = await _db.ScheduleBlockers.Where(sb => sb.StartDate <= dto.AppointmentDate && sb.EndDate >= dto.AppointmentDate).FirstOrDefaultAsync();
+                if (schedulingBlocker != null)
+                {
+                    return BadRequest(new
+                    {
+                        error = "Scheduling conflict",
+                        message = "The selected appointment date and time are not available."
+                    });
+                }
                 var minimumBookingDate = _db.SystemSettings.Find("MinimumBookingDate"); // Value in days
                 var selectedBookingDate = minimumBookingDate != null ? DateTime.Now.AddDays(int.Parse(minimumBookingDate.Value)) : DateTime.Now.AddDays(2);
                 if (dto.AppointmentDate < selectedBookingDate)
