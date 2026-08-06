@@ -21,6 +21,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
         public async Task<IActionResult> GetScheduleBlockers()
         {
             var scheduleBlockers = await _db.ScheduleBlockers.AsNoTracking()
+                .OrderByDescending(sb => sb.StartDate)
                 .ToListAsync();
             return Ok(scheduleBlockers);
         }
@@ -36,33 +37,9 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     message = "Schedule Blocker already exists for the given start date."
                 });
             }
-            if (dto.IsFullDay)
-            {
-                dto.StartDate = dto.StartDate.Date;
-                dto.EndDate = dto.StartDate.Date.AddDays(1).AddTicks(-1);
-            } 
-            if (dto.StartDate >= dto.EndDate)
-            {
-                return BadRequest(new
-                {
-                    error = "Invalid Date Range",
-                    message = "Start date must be earlier than end date."
-                });
-            }
-            if (!dto.IsFullDay)
-            {
-                if (!dto.EndDate.HasValue)
-                {
-                    return BadRequest(new
-                    {
-                        error = "End date is required for non-full-day schedule blockers.",
-                        message = "Please provide an end date."
-                    });
-                }
-            }
 
             var existingBooking = await _db.Bookings
-                  .Where(x => x.AppointmentDate >= dto.StartDate && x.AppointmentDate <= dto.EndDate) // 🌟 干净利落
+                  .Where(x => x.AppointmentDate.Date == dto.StartDate.Date)
                   .Where(x => x.Status == BookingStatus.Pending || x.Status == BookingStatus.Approved)
                   .ToListAsync();
             if (existingBooking.Any())
@@ -70,7 +47,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 return BadRequest(new
                 {
                     error = "Schedule Conflict",
-                    message = $"Cannot create schedule blocker. There are existing bookingIDs {string.Join(", ", existingBooking.Select(b => b.BookingID))} between {dto.StartDate} and {dto.EndDate}."
+                    message = $"Cannot create schedule blocker. There are existing bookingIDs {string.Join(", ", existingBooking.Select(b => b.BookingID))} on {dto.StartDate.Date}."
                 });
             }
 
@@ -78,9 +55,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             var scheduleBlocker = new ScheduleBlocker
             {
                 StartDate = dto.StartDate,
-                EndDate = dto.EndDate ?? dto.StartDate,
                 Reason = reason,
-                IsFullDay = dto.IsFullDay,
             };
             _db.ScheduleBlockers.Add(scheduleBlocker);  
             await _db.SaveChangesAsync();
@@ -104,6 +79,16 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             }
             else
             {
+                // Pass days check
+                var todayDays = DateTime.Now;
+                if (sb.StartDate < todayDays)
+                {
+                    return BadRequest(new
+                    {
+                        error = "Invalid Request",
+                        message = "Cannot delete a schedule blocker that has already started."
+                    });
+                }
                 _db.ScheduleBlockers.Remove(sb);
                 await _db.SaveChangesAsync();
                 return Ok(new

@@ -63,7 +63,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             }
 
             var scheduleBlockers = await _db.ScheduleBlockers
-                .Where(sb => sb.StartDate <= request.End && sb.EndDate >= request.Start)
+                .Where(sb => sb.StartDate <= request.End && sb.StartDate >= request.Start)
                 .ToListAsync();
 
             foreach (var sb in scheduleBlockers)
@@ -73,7 +73,6 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     ID = $"blocker_{sb.ScheduleBlockerID}",
                     Title = $"🚫 {sb.Reason}",
                     Start = sb.StartDate.ToString("yyyy-MM-dd"),
-                    End = sb.EndDate.AddDays(1).ToString("yyyy-MM-dd"),
                     Color = "#ff4d4d",
                     AllDay = true,
                     EventType = "blocker"

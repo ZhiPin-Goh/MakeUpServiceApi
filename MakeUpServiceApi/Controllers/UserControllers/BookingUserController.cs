@@ -189,8 +189,8 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = "Appointment date must be in the future"
                     });
                 }
-                var schedulingBlocker = await _db.ScheduleBlockers.Where(sb => sb.StartDate <= dto.AppointmentDate && sb.EndDate >= dto.AppointmentDate).FirstOrDefaultAsync();
-                if (schedulingBlocker != null)
+                var schedulingBlocker = await _db.ScheduleBlockers.AnyAsync(sb => sb.StartDate.Date == dto.AppointmentDate.Date);
+                if (schedulingBlocker)
                 {
                     return BadRequest(new
                     {

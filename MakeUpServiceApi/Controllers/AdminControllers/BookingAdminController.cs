@@ -272,13 +272,13 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             using var transaction = await _db.Database.BeginTransactionAsync();
             try
             {
-                var schedulingBlocker = await _db.ScheduleBlockers.Where(sb => sb.StartDate <= dto.AppointmentDate && sb.EndDate >= dto.AppointmentDate).FirstOrDefaultAsync();
-                if (schedulingBlocker != null)
+                var schedulingBlocker = await _db.ScheduleBlockers.AnyAsync(sb => sb.StartDate.Date == dto.AppointmentDate.Date);
+                if (schedulingBlocker)
                 {
                     return BadRequest(new
                     {
                         error = "Scheduling conflict",
-                        message = "The selected appointment date and time are not available."
+                        message = "The Schedule Blocker is active for the selected date. Please choose another date."
                     });
                 }
                 string phonePattern = @"^01[0-9]\d{7,8}$";

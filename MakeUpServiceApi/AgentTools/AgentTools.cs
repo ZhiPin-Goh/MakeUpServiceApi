@@ -65,7 +65,7 @@ namespace MakeUpServiceApi.AgentTools
                         }
                         var blockers = await _db.ScheduleBlockers.AsNoTracking()
                             .Where(x => x.StartDate.Month == targetMonth.Month && x.StartDate.Year == targetMonth.Year)
-                            .Select(x => new { x.StartDate, x.EndDate, x.Reason })
+                            .Select(x => new { x.StartDate, x.Reason })
                             .ToListAsync();
                         return JsonSerializer.Serialize(new
                         {
