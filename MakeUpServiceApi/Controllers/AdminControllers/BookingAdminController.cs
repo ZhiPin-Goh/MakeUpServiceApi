@@ -291,13 +291,13 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                         message = "Phone number must be in the format 01X-XXXXXXX or 01X-XXXXXXXX"
                     });
                 }
-            ;
+            
                 if (!Regex.IsMatch(dto.Email, emailPattern))
                 {
                     return BadRequest(new
                     {
                         error = "Invalid email format",
-                        message = "Email must be in the format"
+                        message = "Email must be in the format abc@email.com"
                     });
                 }
                 if (dto.AppointmentDate < DateTime.Now)
@@ -314,7 +314,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     return BadRequest(new
                     {
                         error = "Invalid appointment time",
-                        message = "Appointment time must be between 02:59 and 21:00"
+                        message = "Appointment time must be between 03:00 and 21:00"
                     });
                 }
                 decimal areaPrice = 0;
