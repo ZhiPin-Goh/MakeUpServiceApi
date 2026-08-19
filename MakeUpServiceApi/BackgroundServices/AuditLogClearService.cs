@@ -20,7 +20,7 @@ namespace MakeUpServiceApi.BackgroundServices
                 {
                     using var scope = _serviceProvider.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                    var cutoffDate = DateTime.UtcNow.AddDays(-3);
+                    var cutoffDate = DateTime.Now.AddDays(-3);
                     var oldLogs = await db.AuditLogs.Where(log => log.Timestamp < cutoffDate).ToListAsync(_stoppingToken);
                     if (oldLogs.Any())
                     {

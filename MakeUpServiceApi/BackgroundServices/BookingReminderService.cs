@@ -4,14 +4,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace MakeUpServiceApi.BackgroundServices
 {
-    public class TripRemindersService : BackgroundService
+    public class BookingReminderService : BackgroundService
     {
-        private readonly ILogger<TripRemindersService> _logger;
         private readonly IServiceProvider _serviceProvider;
-        public TripRemindersService(ILogger<TripRemindersService> logger, IServiceProvider serviceProvider)
+        private readonly ILogger<BookingReminderService> _logger;
+        public BookingReminderService(IServiceProvider serviceProvider, ILogger<BookingReminderService> logger)
         {
-            _logger = logger;
             _serviceProvider = serviceProvider;
+            _logger = logger;
         }
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -21,27 +21,35 @@ namespace MakeUpServiceApi.BackgroundServices
                 {
                     using var scope = _serviceProvider.CreateScope();
                     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
                     var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
-                    var upcomingBookings = await db.Bookings
-                        .Include(b => b.Service)
-                        .Where(b => b.AppointmentDate.Date == DateTime.Now.AddDays(1).Date && b.Status == BookingStatus.Approved)
+                    var tomorrow = DateTime.Now.AddDays(1).Date;
+
+                    var upComingBookings = await db.Bookings
+                        .Where(b => b.AppointmentDate.Date == tomorrow && b.Status == BookingStatus.Pending)
                         .ToListAsync(stoppingToken);
 
-                    if(upcomingBookings.Any())
+                    if(upComingBookings.Any())
                     {
-                        foreach(var booking in upcomingBookings)
+                        foreach (var booking in upComingBookings)
                         {
-                            string emailBody =  EmailBody(booking.Name, booking.Service.Name, booking.AppointmentDate, booking.AppointmentTime);
+                            await notificationService.SendNotificationAsync(title: "Booking Reminder",
+                                message: @$"Reminder: You have an appointment scheduled for {booking.AppointmentDate.ToString("dd/MM/yyyy")}
+                                        Time: {booking.AppointmentTime}. Please make sure to be on time.",
+                                type: "BookingReminder",
+                                relatedID: booking.BookingID
+                                );
+                            string emailBody = EmailBody(booking.Name, booking.Service.Name, booking.AppointmentDate, booking.AppointmentTime);
 
                             await emailService.SendEmailAsync(booking.Email, "Trip Reminder", emailBody);
                         }
+                        _logger.LogInformation("Sent reminders for {Count} upcoming bookings.", upComingBookings.Count);
                     }
-                    _logger.LogInformation("Total {Count} trip reminders sent at: {Time}", upcomingBookings.Count, DateTimeOffset.Now);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "An error occurred while processing trip reminders.");
+                    _logger.LogError(ex, "An error occurred while sending booking reminders.");
                 }
                 await Task.Delay(TimeSpan.FromDays(1), stoppingToken);
             }

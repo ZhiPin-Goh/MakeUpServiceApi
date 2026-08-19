@@ -75,8 +75,9 @@ namespace MakeUpServiceApi.InterfaceServices
                 var geoResponse = await _httpClient.GetAsync(geoUrl);
                 if (!geoResponse.IsSuccessStatusCode) return 0m;
 
+                // Convert the response to JSON and extract the latitude and longitude
                 var geoJson = await geoResponse.Content.ReadAsStringAsync();
-                _logger.LogInformation("LocationIQ Geo Response: {Json}", geoJson);
+                // _logger.LogInformation("LocationIQ Geo Response: {Json}", geoJson);
                 using JsonDocument geoDoc = JsonDocument.Parse(geoJson);
                 var clientLat = geoDoc.RootElement[0].GetProperty("lat").GetString();
                 var clientLon = geoDoc.RootElement[0].GetProperty("lon").GetString();

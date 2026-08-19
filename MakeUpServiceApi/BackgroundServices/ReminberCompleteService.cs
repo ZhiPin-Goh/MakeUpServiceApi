@@ -29,13 +29,15 @@ namespace MakeUpServiceApi.BackgroundServices
                     {
                         foreach (var booking in bookings)
                         {
-                            await notificationService.SendNotificationAsync(title: "Booking Completion Reminder",
-                                message: @$"Reminder: Your appointment scheduled for {booking.AppointmentDate.ToString("dd/MM/yyyy")}
-                                        Time: {booking.AppointmentDate.ToString("HH:mm")} has been completed. Please provide your feedback.",
+                            await notificationService.SendNotificationAsync(title: "Reminder: Complete Your Booking",
+                                message: @$"System automatically reminds you to complete your booking for {booking.Service.Name} on {booking.AppointmentDate:dd/MM/yyyy} at {booking.AppointmentTime}. Please provide your feedback and rating.",
                                 type: "BookingCompletionReminder",
                                 relatedID: booking.BookingID
                                 );
-                        }
+                            booking.Status = BookingStatus.Completed;
+                        }        
+                        await db.SaveChangesAsync(stoppingToken);
+
                         _logger.LogInformation("Booking completion reminders sent successfully. Count: {Count}", bookings.Count);
                     }
                 }

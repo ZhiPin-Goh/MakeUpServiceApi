@@ -185,8 +185,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddHostedService<IdempotencyClearService>();
 builder.Services.AddHostedService<TokenClearService>();
 builder.Services.AddHostedService<AuditLogClearService>();
-builder.Services.AddHostedService<ReminbersBookingService>();
-builder.Services.AddHostedService<TripRemindersService>();
+builder.Services.AddHostedService<BookingReminderService>();
 builder.Services.AddHostedService<ClearBookingService>();
 builder.Services.AddHostedService<ReminberCompleteService>();
 builder.Services.AddHostedService<ClearNotifyService>();
