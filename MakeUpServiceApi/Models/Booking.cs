@@ -33,6 +33,7 @@ namespace MakeUpServiceApi.Models
         public string? Unit { get; set; } // e.g: unit C-2-1, 20A, 10-1...
         public decimal DistanceKm { get; set; }
         public decimal? TravelFee { get; set; }
+        public decimal? ServiceFee { get; set; }
         public decimal? TotalPrice { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public int? AreaID { get; set; }
