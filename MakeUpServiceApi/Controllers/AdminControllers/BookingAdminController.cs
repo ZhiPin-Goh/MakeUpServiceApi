@@ -72,6 +72,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     AppointmentDate = b.AppointmentDate,
                     Service = b.Service.Name,
                     Area = b.ServiceArea.Name,
+                    ServicePrice = b.Service.Price,
                     TotalPrice = b.TotalPrice,
                     Status = b.Status.ToString()
                 })
@@ -88,6 +89,8 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
         public async Task<IActionResult> GetBookingByID(int id)
         {
             var bookingDetails = await _db.Bookings
+                .Include(b => b.Service)
+                .Include(b => b.ServiceArea)
              .Where(b => b.BookingID == id)
              .Select(b => new
              {
@@ -102,7 +105,8 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                  Service = b.Service.Name,
                  TravelFee = b.TravelFee,
                  TotalPrice = b.TotalPrice,
-                 Status = b.Status.ToString()
+                 Status = b.Status.ToString(),
+                 ServicePrice = b.Service.Price,
              })
              .FirstOrDefaultAsync();
 
@@ -156,13 +160,20 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             // checking if the booking is being approved, we need to check for conflicts
             // 检查是否有冲突的预约
             var currentDateTime = DateTime.Now;
-            if (dto.Status == BookingStatus.Completed && existingBooking.AppointmentDate > currentDateTime && existingBooking.AppointmentTime > currentDateTime.TimeOfDay)
+            if (dto.Status == BookingStatus.Completed)
             {
-                return BadRequest(new
+                // Combine appointment date and time
+                var appointmentDateTime = existingBooking.AppointmentDate.Date.Add(existingBooking.AppointmentTime);
+
+                // Check if appointment is in the future (not yet scheduled)
+                if (appointmentDateTime > currentDateTime)
                 {
-                    error = "Invalid status change",
-                    message = "Cannot mark a future booking as completed."
-                });
+                    return BadRequest(new
+                    {
+                        error = "Cannot mark as Completed",
+                        message = $"The appointment is scheduled for {appointmentDateTime.ToString("yyyy-MM-dd HH:mm:ss")}, which is in the future. You can only mark a booking as Completed after the appointment time has passed."
+                    });
+                }
             }
 
             if (dto.Status == BookingStatus.Rejected && existingBooking.AppointmentDate < currentDateTime.Date)
@@ -291,7 +302,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                         message = "Phone number must be in the format 01X-XXXXXXX or 01X-XXXXXXXX"
                     });
                 }
-            
+
                 if (!Regex.IsMatch(dto.Email, emailPattern))
                 {
                     return BadRequest(new
@@ -522,19 +533,22 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
             var existingBooking = await _db.Bookings.FirstOrDefaultAsync(b => b.BookingID == dto.BookingID);
             if (existingBooking == null)
             {
-                return NotFound(new { error = "Booking not found" });
+                return NotFound(new { error = "Booking not found", message = $"Booking with ID {dto.BookingID} not found" });
             }
             if (dto.NewTravelFee < 0)
             {
-                return BadRequest(new { error = "Travel fee cannot be negative" });
+                return BadRequest(new { error = "Invalid travel fee", message = "Travel fee cannot be negative" });
             }
-
+            if(existingBooking.Status == BookingStatus.Approved)
+            {
+                return BadRequest(new { error = "Cannot update travel fee for approved bookings", message = "Approved bookings cannot have their travel fees updated" });
+            }
             //重新计算总费用 
             // Re-calculate total fee based on the new travel fee
             var service = await _db.Services.FirstOrDefaultAsync(s => s.ServiceID == existingBooking.ServiceID);
             if (service == null)
             {
-                return NotFound(new { error = "Service not found" });
+                return NotFound(new { error = "Service not found", message = $"Service with ID {existingBooking.ServiceID} not found" });
             }
 
             decimal servicePrice = Convert.ToDecimal(service.Price);
