@@ -237,6 +237,39 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = $"No service found with ServiceID {dto.ServiceID}"
                     });
                 }
+                // Availability check for the selected service on the given date and time
+                var estimatedDuration = Convert.ToInt32(existingService.EstimatedDurationMinutes);
+                var newStartTime = dto.AppointmentTime;
+                var newEndTime = dto.AppointmentTime.Add(TimeSpan.FromMinutes(estimatedDuration));
+
+                var dayBookings = await _db.Bookings
+                    .Include(b => b.Service)
+                    .Where(b => b.AppointmentDate.Date == dto.AppointmentDate.Date && b.Status == BookingStatus.Approved)
+                    .ToListAsync();
+
+                var conflictingBooking = dayBookings.FirstOrDefault(b =>
+                {
+                    var existingStartTime = b.AppointmentTime;
+                    var existingDuration = Convert.ToDouble(b.Service?.EstimatedDurationMinutes ?? 60);
+                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
+
+                    // Overlap occurs if: (Existing starts before New ends) AND (Existing ends after New starts)
+                    return existingStartTime < newEndTime && existingEndTime > newStartTime;
+                });
+
+                if (conflictingBooking != null)
+                {
+                    var existingStartTime = conflictingBooking.AppointmentTime;
+                    var existingDuration = Convert.ToDouble(conflictingBooking.Service?.EstimatedDurationMinutes ?? 60);
+                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
+
+                    return BadRequest(new
+                    {
+                        error = "Selected time slot is not available",
+                        message = @$"Your selected time ({newStartTime:hh\\:mm} - {newEndTime:hh\\:mm}) overlaps with an existing booking ({existingStartTime:hh\\:mm} - {existingEndTime:hh\\:mm}). 
+                                    Please choose a different time."
+                    });
+                }
                 //decimal areaPrice = 0;
                 if (dto.AreaID.HasValue)
                 {

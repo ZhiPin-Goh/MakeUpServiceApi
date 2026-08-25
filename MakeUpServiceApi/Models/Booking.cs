@@ -38,6 +38,7 @@ namespace MakeUpServiceApi.Models
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public int? AreaID { get; set; }
         public string? GoogleEventID { get; set; } // Store the Google Calendar Event ID
+        public int TotalDurationMinutes { get; set; }
         [ForeignKey("AreaID")]
         public virtual ServiceArea? ServiceArea { get; set; }
     }

@@ -83,9 +83,16 @@ namespace MakeUpServiceApi.AgentTools
                             });
                         }
                         var existingBooking = await _db.Bookings.AsNoTracking()
+                            .Include(x => x.Service)
                             .Where(x => x.AppointmentDate.Date == checkDate.Date)
                             .Where(x => x.Status == BookingStatus.Pending || x.Status == BookingStatus.Approved)
-                            .Select(x => new { x.BookingID, x.AppointmentDate, x.Status })
+                            .Select(x => new { 
+                                x.BookingID, 
+                                x.AppointmentDate, 
+                                x.AppointmentTime, 
+                                EstimatedDurationMinutes = x.Service != null ? x.Service.EstimatedDurationMinutes : 60,
+                                x.Status 
+                            })
                             .ToListAsync();
                         return JsonSerializer.Serialize(new
                         {
