@@ -375,6 +375,19 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                                 },
                                 required = new[] { "name", "email", "phoneNumber", "appointmentDate", "locationAddress", "serviceID", "pax" }
                             }
+                        },
+                        // Method Get - PaxDurationMinutes
+                        new {
+                            name = "PaxDurationMinutes",
+                            description = "Calculate the total duration needed based on the number of pax (people) and the selected service.",
+                            parameters = new {
+                                type = "OBJECT",
+                                properties = new {
+                                    serviceID = new { type = "INTEGER", description = "The ID of the makeup service." },
+                                    pax = new { type = "INTEGER", description = "Number of people needing the service." }
+                                },
+                                required = new[] { "serviceID", "pax" }
+                            }
                         }
                     }
                 };
