@@ -107,6 +107,7 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                  TotalPrice = b.TotalPrice,
                  Status = b.Status.ToString(),
                  ServicePrice = b.Service.Price,
+                 TotalDurationMinutes = b.TotalDurationMinutes,
              })
              .FirstOrDefaultAsync();
 
@@ -350,12 +351,12 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     }
                     areaPrice = existingArea.BasePrice;
                 }
-                if (dto.Pax < 1)
+                if (dto.Pax < 1 || dto.Pax > 5)
                 {
                     return BadRequest(new
                     {
                         error = "Invalid number of participants",
-                        message = "Number of participants (Pax) must be at least 1"
+                        message = "Number of participants (Pax) must be between 1 and 5"
                     });
                 }
                 var existingService = await _db.Services.FindAsync(dto.ServiceID);
@@ -365,6 +366,48 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     {
                         error = "Service not found",
                         message = $"No service found with ID {dto.ServiceID}"
+                    });
+                }
+
+                int totalBookingDuration = 0;
+                var totalDurationSettings = await _db.SystemSettings.FindAsync("TotalBookingDuration");
+                if (dto.Pax > 1)
+                {
+                    var additionalDuration = (totalDurationSettings != null && !string.IsNullOrEmpty(totalDurationSettings.Value)) ? int.Parse(totalDurationSettings.Value) : 30;
+                    int totalPaxDuration = additionalDuration * (dto.Pax - 1);
+                    totalBookingDuration = Convert.ToInt32(existingService.EstimatedDurationMinutes + totalPaxDuration);
+                }
+                else
+                {
+                    totalBookingDuration = Convert.ToInt32(existingService.EstimatedDurationMinutes);
+                }
+
+                // Check availabel booking
+                var newStartTime = dto.AppointmentTime;
+                var newEndTime = dto.AppointmentTime.Add(TimeSpan.FromMinutes(totalBookingDuration));
+                var dayBookings = await _db.Bookings
+                    .Include(b => b.Service)
+                    .Where(b => b.AppointmentDate.Date == dto.AppointmentDate.Date && b.Status == BookingStatus.Approved)
+                    .ToListAsync();
+
+                var conflictingBooking = dayBookings.FirstOrDefault(b =>
+                {
+                    var existingStartTime = b.AppointmentTime;
+                    var existingDuration = b.TotalDurationMinutes > 0 ? (double)b.TotalDurationMinutes : Convert.ToDouble(b.Service?.EstimatedDurationMinutes ?? 60);
+                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
+
+                    return existingStartTime < newEndTime && existingEndTime > newStartTime;
+                });
+                if (conflictingBooking != null)
+                {
+                    var existingStartTime = conflictingBooking.AppointmentTime;
+                    var existingDuration = conflictingBooking.TotalDurationMinutes > 0 ? (double)conflictingBooking.TotalDurationMinutes : Convert.ToDouble(conflictingBooking.Service?.EstimatedDurationMinutes ?? 60);
+                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
+
+                    return BadRequest(new
+                    {
+                        error = "Selected time slot is not available",
+                        message = $"Your selected time ({newStartTime:hh\\:mm} - {newEndTime:hh\\:mm}) overlaps with an existing booking ({existingStartTime:hh\\:mm} - {existingEndTime:hh\\:mm}). Please choose a different time."
                     });
                 }
 
@@ -390,9 +433,8 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                     Status = BookingStatus.Approved,
                     Pax = dto.Pax,
                     Unit = !string.IsNullOrEmpty(dto.Unit) ? dto.Unit : null,
+                    TotalDurationMinutes = totalBookingDuration
                 };
-
-
 
                 _db.Bookings.Add(newBooking);
                 await _db.SaveChangesAsync();

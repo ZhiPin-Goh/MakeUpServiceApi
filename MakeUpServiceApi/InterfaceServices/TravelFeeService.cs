@@ -23,12 +23,13 @@ namespace MakeUpServiceApi.InterfaceServices
             _cache = memoryCache;
             _apiKey = config["MapSettings:ApiKey"];
         }
-        public async Task<(decimal TotalFee, decimal DistanceKm)> CalculateFeeAsync(int? areaID, string clientAddress)
+        public async Task<(decimal TotalFee, decimal DistanceKm, decimal DistanceFee)> CalculateFeeAsync(int? areaID, string clientAddress)
         {
             try
             {
                 decimal totalFee = 0;
                 decimal distanceKm = 0;
+                decimal distanceFee = 0;
                 if (areaID.HasValue)
                 {
                     var area = await _db.ServiceAreas.FirstOrDefaultAsync(a => a.AreaID == areaID.Value);
@@ -44,9 +45,10 @@ namespace MakeUpServiceApi.InterfaceServices
                 if (!string.IsNullOrEmpty(clientAddress))
                 {
                     distanceKm = await GetMapsDistanceAsync(clientAddress);
-                    totalFee += CalculateDistanceFee(distanceKm);
+                    distanceFee = await CalculateDistanceFeeAsync(distanceKm);
+                    totalFee += distanceFee;
                 }
-                return (totalFee, distanceKm);
+                return (totalFee, distanceKm, distanceFee);
             }
             catch (Exception ex)
             {
@@ -112,12 +114,12 @@ namespace MakeUpServiceApi.InterfaceServices
                 throw;
             }
         }
-        private decimal CalculateDistanceFee(decimal km)
+        private async Task<decimal> CalculateDistanceFeeAsync(decimal km)
         {
             // 1km/5.0m simple: 20km = 100m
             if (!_cache.TryGetValue("TravelFeePerKm", out string feeStr))
             {
-                var setting = _db.SystemSettings.Find("TravelFeePerKm");
+                var setting = await _db.SystemSettings.FindAsync("TravelFeePerKm");
 
                 feeStr = setting?.Value ?? "5.0"; // Default to 5.0 if not found
                 _cache.Set("TravelFeePerKm", feeStr, TimeSpan.FromHours(24));
@@ -129,15 +131,5 @@ namespace MakeUpServiceApi.InterfaceServices
             return Math.Round(km * 5.0m, 2); // Default rate if parsing fails
 
         }
-        // Static pricing based on distance in kilometers
-        //if (km <= 1) return 5.0m;
-        //if (km <= 1.5m) return 7.5m;
-        //if (km <= 2) return 10.0m;
-        //if (km <= 2.5m) return 12.5m;
-        //if (km <= 3) return 15.0m;
-        //if (km <= 3.5m) return 17.5m;
-        //if (km <= 4) return 20.0m;
-        //if (km <= 4.5m) return 22.5m;
-        //return 25.0m;
     }
 }

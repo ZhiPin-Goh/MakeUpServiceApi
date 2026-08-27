@@ -3,6 +3,7 @@ using MakeUpServiceApi.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks.Dataflow;
 
 namespace MakeUpServiceApi.AgentTools
 {
@@ -24,7 +25,7 @@ namespace MakeUpServiceApi.AgentTools
             _scopeFactory = serviceScope;
             _logger = logger;
         }
-       
+
         public async Task<string> ExecuteToolAsync(ToolCall call)
         {
             try
@@ -86,12 +87,13 @@ namespace MakeUpServiceApi.AgentTools
                             .Include(x => x.Service)
                             .Where(x => x.AppointmentDate.Date == checkDate.Date)
                             .Where(x => x.Status == BookingStatus.Pending || x.Status == BookingStatus.Approved)
-                            .Select(x => new { 
-                                x.BookingID, 
-                                x.AppointmentDate, 
-                                x.AppointmentTime, 
-                                EstimatedDurationMinutes = x.Service != null ? x.Service.EstimatedDurationMinutes : 60,
-                                x.Status 
+                            .Select(x => new
+                            {
+                                x.BookingID,
+                                x.AppointmentDate,
+                                x.AppointmentTime,
+                                TotalDurationMinutes = x.TotalDurationMinutes > 0 ? x.TotalDurationMinutes : (x.Service != null ? x.Service.EstimatedDurationMinutes : 60),
+                                x.Status
                             })
                             .ToListAsync();
                         return JsonSerializer.Serialize(new
@@ -110,7 +112,7 @@ namespace MakeUpServiceApi.AgentTools
                             return JsonSerializer.Serialize(new { tool = "CalculatePriceAndTravelFee", error = "Invalid or missing 'address'. Please ask the user for a full valid address." });
                         }
                         if (!call.Args.TryGetValue("pax", out var cPaxObj) || !int.TryParse(cPaxObj.ToString(), out int cPax)) cPax = 1;
-                        
+
                         int? parsedAreaID = null;
                         if (call.Args.TryGetValue("areaID", out var aIdObj) && int.TryParse(aIdObj.ToString(), out int aId))
                         {
@@ -192,26 +194,26 @@ namespace MakeUpServiceApi.AgentTools
                         {
                             return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Appointment date must be in the future." });
                         }
-                        
+
                         var minimumBookingDate = _db.SystemSettings.Find("MinimumBookingDate");
                         var selectedBookingDate = minimumBookingDate != null ? DateTime.Now.AddDays(int.Parse(minimumBookingDate.Value)) : DateTime.Now.AddDays(2);
                         if (appDate < selectedBookingDate)
                         {
                             return JsonSerializer.Serialize(new { tool = "CreateBooking", error = $"Appointment date must be at least {selectedBookingDate.ToString("yyyy-MM-dd")} or later." });
                         }
-                        
+
                         var maximumBookingDate = _db.SystemSettings.Find("MaximumBookingDate");
                         var selectedMaximumBookingDate = maximumBookingDate != null ? DateTime.Now.AddDays(int.Parse(maximumBookingDate.Value)) : DateTime.Now.AddMonths(3);
                         if (appDate > selectedMaximumBookingDate)
                         {
                             return JsonSerializer.Serialize(new { tool = "CreateBooking", error = $"Appointment date must be on or before {selectedMaximumBookingDate.ToString("yyyy-MM-dd")}." });
                         }
-                        
-                        if(appDate.TimeOfDay >= new TimeSpan(21, 0, 0) || appDate.TimeOfDay < new TimeSpan(3, 0, 0))
+
+                        if (appDate.TimeOfDay >= new TimeSpan(21, 0, 0) || appDate.TimeOfDay < new TimeSpan(3, 0, 0))
                         {
                             return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Appointment time must be between 02:59 and 21:00." });
                         }
-                        
+
                         int? bookAreaID = null;
                         if (call.Args.TryGetValue("areaID", out var bAreaIdObj) && int.TryParse(bAreaIdObj.ToString(), out int bAId))
                         {
@@ -222,7 +224,7 @@ namespace MakeUpServiceApi.AgentTools
                         {
                             return JsonSerializer.Serialize(new { tool = "CreateBooking", error = "Invalid 'areaID'. The specified area does not exist or is inactive." });
                         }
-                        
+
                         string locAddress = call.Args.GetValueOrDefault("locationAddress")?.ToString() ?? "";
                         if (existingArea != null && !locAddress.Contains(existingArea.Name, StringComparison.OrdinalIgnoreCase))
                         {
@@ -236,8 +238,22 @@ namespace MakeUpServiceApi.AgentTools
                         decimal basePriceToBook = Convert.ToDecimal(serciveToBook.Price * bPax);
                         decimal totalPriceToBook = Math.Round(basePriceToBook + travelFeeToBook.TotalFee, 0, MidpointRounding.AwayFromZero);
 
+                        int totalBookingDuration = 0;
+                        var totalDurationSettings = await _db.SystemSettings.FindAsync("TotalBookingDuration");
+                        if (bPax > 1)
+                        {
+                            var additionalDuration = (totalDurationSettings != null && !string.IsNullOrEmpty(totalDurationSettings.Value)) ? int.Parse(totalDurationSettings.Value) : 30;
+                            int totalPaxDuration = additionalDuration * (bPax - 1);
+                            totalBookingDuration = Convert.ToInt32(serciveToBook.EstimatedDurationMinutes) + totalPaxDuration;
+                        }
+                        else
+                        {
+                            totalBookingDuration = Convert.ToInt32(serciveToBook.EstimatedDurationMinutes);
+                        }
+
                         var newBooking = new Booking
                         {
+                            TotalDurationMinutes = totalBookingDuration,
                             Name = call.Args.GetValueOrDefault("name")?.ToString() ?? "",
                             Email = emailObj.ToString(),
                             PhoneNumber = call.Args.GetValueOrDefault("phoneNumber")?.ToString() ?? "",
@@ -290,6 +306,46 @@ namespace MakeUpServiceApi.AgentTools
                             status = "success",
                             bookingID = newBooking.BookingID
                         });
+
+                    case "paxdurationminutes":
+                    {
+                        if (!call.Args.TryGetValue("serviceID", out var sIDObj) || !int.TryParse(sIDObj.ToString(), out int serviceID))
+                        {
+                            return JsonSerializer.Serialize(new { tool = "CalculatePriceAndTravelFee", error = "Invalid or missing 'serviceID'." });
+                        }
+                        if (!call.Args.TryGetValue("pax", out var PaxObj) || !int.TryParse(PaxObj.ToString(), out int Pax)) Pax = 1;
+
+                        var paxService = await _db.Services.FirstOrDefaultAsync(s => s.ServiceID == serviceID && s.Status == "Active");
+                        if (paxService == null)
+                            return JsonSerializer.Serialize(new
+                            {
+                                tool = "CalculatePriceAndTravelFee",
+                                error = "Service not found or inactive."
+                            });
+
+                        int totalDuration = 0;
+                        var totalDurationSettingsCalculated = await _db.SystemSettings.FindAsync("TotalBookingDuration");
+                        var additionalDuration = 0;
+                        if (Pax > 1)
+                        {
+                            additionalDuration = (totalDurationSettingsCalculated != null && !string.IsNullOrEmpty(totalDurationSettingsCalculated.Value)) ? int.Parse(totalDurationSettingsCalculated.Value) : 30;
+                            int totalPaxDuration = additionalDuration * (Pax - 1);
+                            totalDuration = Convert.ToInt32(paxService.EstimatedDurationMinutes) + totalPaxDuration;
+                        }
+                        else
+                        {
+                            totalDuration = Convert.ToInt32(paxService.EstimatedDurationMinutes);
+                        }
+                        return JsonSerializer.Serialize(new
+                        {
+                            tool = "paxdurationminutes",
+                            status = "success",
+                            serviceName = paxService.Name, // Include the service name in the response
+                            durationService = paxService.EstimatedDurationMinutes, // Duration for 1 pax
+                            additionalDuration = additionalDuration, // Duration added for each additional pax
+                            totalDurationMinutes = totalDuration // Total duration considering the number of pax
+                        });
+                    }
 
                     default:
                         return JsonSerializer.Serialize(new

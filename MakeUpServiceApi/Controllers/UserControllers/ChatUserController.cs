@@ -121,6 +121,11 @@ namespace MakeUpServiceApi.Controllers.UserControllers
             prompt.AppendLine("      → Required info: name, phone number, date, time, location, service ID");
             prompt.AppendLine("      → Use when: User confirms they want to proceed with booking");
             prompt.AppendLine();
+            prompt.AppendLine("  7️⃣  PaxDurationMinutes");
+            prompt.AppendLine("      → Calculate the total duration needed based on the number of pax (people) and the selected service");
+            prompt.AppendLine("      → Required info: serviceID, pax");
+            prompt.AppendLine("      → Use when: User asks how long the service will take for multiple people (e.g. \"2 person need how long?\" or \"the graduate service 120minit so 2 person need 4h\")");
+            prompt.AppendLine();
 
             // ============================================================================
             // SECTION 4: BOOKING WORKFLOW & RULES

@@ -2,6 +2,6 @@
 {
     public interface ITravelFeeService
     {
-        Task<(decimal TotalFee, decimal DistanceKm)> CalculateFeeAsync(int? areaID, string clientAddress);
+        Task<(decimal TotalFee, decimal DistanceKm, decimal DistanceFee)> CalculateFeeAsync(int? areaID, string clientAddress);
     }
 }

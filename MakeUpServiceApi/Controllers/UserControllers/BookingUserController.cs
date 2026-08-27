@@ -19,7 +19,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
         private readonly HttpClient _httpClient;
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly ILogger<BookingUserController> _logger;
-        public BookingUserController(AppDbContext db, ITravelFeeService travelFeeService, IConfiguration config, HttpClient httpClient, IServiceScopeFactory serviceScopeFactory, ILogger<BookingUserController> logger) 
+        public BookingUserController(AppDbContext db, ITravelFeeService travelFeeService, IConfiguration config, HttpClient httpClient, IServiceScopeFactory serviceScopeFactory, ILogger<BookingUserController> logger)
         {
             _db = db;
             _travelFeeService = travelFeeService;
@@ -85,19 +85,36 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     });
                 }
 
+                int totalBookingDuration = 0;
+                var totalDurationSettings = await _db.SystemSettings.FindAsync("TotalBookingDuration"); // Value e.g more than 2 pax add "30", "60"......
+                if (dto.Pax > 1)
+                {
+                    var additionalDuration = (totalDurationSettings != null && !string.IsNullOrEmpty(totalDurationSettings.Value)) ? int.Parse(totalDurationSettings.Value) : 30;// Default additional duration in minutes
+                    int totalPaxDuration = additionalDuration * (dto.Pax - 1);
+                    totalBookingDuration = Convert.ToInt32(service.EstimatedDurationMinutes) + totalPaxDuration;
+                }
+                else
+                {
+                    totalBookingDuration = Convert.ToInt32(service.EstimatedDurationMinutes);
+                }
+
                 var travelFee = await _travelFeeService.CalculateFeeAsync(dto.AreaID, dto.LocationAddress);
                 var baseServicePrice = Convert.ToDecimal(service.Price * dto.Pax);
                 decimal rawTotalPrice = baseServicePrice + travelFee.TotalFee;
                 decimal totalPrice = Math.Round(rawTotalPrice, 0, MidpointRounding.AwayFromZero);
+                decimal DistanceFee = Math.Round(travelFee.DistanceFee, 0, MidpointRounding.AwayFromZero);
 
                 return Ok(new
                 {
                     serviceName = service.Name,
-                    serviceBasePrice = service.Price,
                     areaBasePrice = area.BasePrice,
                     distanceKm = travelFee.DistanceKm,
-                    totalTravelFee = travelFee.TotalFee,
+                    totalTravelFee = travelFee.TotalFee,                    
+                    serviceBasePrice = service.Price,
                     totalPrice = totalPrice,
+                    pax = dto.Pax,
+                    distanceFee = DistanceFee,
+                    totalBookingDuration = totalBookingDuration
                 });
             }
             catch (Exception ex)
@@ -162,7 +179,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     return BadRequest(new
                     {
                         error = "Invalid phone number format",
-                        message = "Phone number must be in the format 01X-XXXXXXX or 01X-XXXXXXXX"
+                        message = "Phone number must be in the format 01XXXXXXXX or 01XXXXXXXXX"
                     });
                 }
                 if (!Regex.IsMatch(dto.Email, emailPattern))
@@ -173,12 +190,12 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = "Email must be in the format example@domain.com"
                     });
                 }
-                if(dto.Pax < 1)
+                if (dto.Pax < 1 || dto.Pax > 5)
                 {
                     return BadRequest(new
                     {
                         error = "Invalid number of passengers",
-                        message = "Number of passengers (Pax) must be at least 1"
+                        message = "Number of passengers (Pax) must be between 1 and 5"
                     });
                 }
                 if (dto.AppointmentDate < DateTime.Now)
@@ -220,7 +237,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     });
                 }
                 // 2100 - 0259 is unavailable for booking
-                if(dto.AppointmentTime >= new TimeSpan(21, 0, 0) || dto.AppointmentTime < new TimeSpan(3, 0, 0))
+                if (dto.AppointmentTime >= new TimeSpan(21, 0, 0) || dto.AppointmentTime < new TimeSpan(3, 0, 0))
                 {
                     return BadRequest(new
                     {
@@ -237,40 +254,6 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                         message = $"No service found with ServiceID {dto.ServiceID}"
                     });
                 }
-                // Availability check for the selected service on the given date and time
-                var estimatedDuration = Convert.ToInt32(existingService.EstimatedDurationMinutes);
-                var newStartTime = dto.AppointmentTime;
-                var newEndTime = dto.AppointmentTime.Add(TimeSpan.FromMinutes(estimatedDuration));
-
-                var dayBookings = await _db.Bookings
-                    .Include(b => b.Service)
-                    .Where(b => b.AppointmentDate.Date == dto.AppointmentDate.Date && b.Status == BookingStatus.Approved)
-                    .ToListAsync();
-
-                var conflictingBooking = dayBookings.FirstOrDefault(b =>
-                {
-                    var existingStartTime = b.AppointmentTime;
-                    var existingDuration = Convert.ToDouble(b.Service?.EstimatedDurationMinutes ?? 60);
-                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
-
-                    // Overlap occurs if: (Existing starts before New ends) AND (Existing ends after New starts)
-                    return existingStartTime < newEndTime && existingEndTime > newStartTime;
-                });
-
-                if (conflictingBooking != null)
-                {
-                    var existingStartTime = conflictingBooking.AppointmentTime;
-                    var existingDuration = Convert.ToDouble(conflictingBooking.Service?.EstimatedDurationMinutes ?? 60);
-                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
-
-                    return BadRequest(new
-                    {
-                        error = "Selected time slot is not available",
-                        message = @$"Your selected time ({newStartTime:hh\\:mm} - {newEndTime:hh\\:mm}) overlaps with an existing booking ({existingStartTime:hh\\:mm} - {existingEndTime:hh\\:mm}). 
-                                    Please choose a different time."
-                    });
-                }
-                //decimal areaPrice = 0;
                 if (dto.AreaID.HasValue)
                 {
                     var existingArea = await _db.ServiceAreas.FirstOrDefaultAsync(a => a.AreaID == dto.AreaID.Value && a.IsActive == true);
@@ -290,10 +273,54 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                             message = $"You selected '{existingArea.Name}', but your address does not match this area. Please select the correct service area."
                         });
                     }
-                    //areaPrice = existingArea.BasePrice;
                 }
 
                 var travelFee = await _travelFeeService.CalculateFeeAsync(clientAddress: dto.LocationAddress, areaID: dto.AreaID);
+
+                int totalBookingDuration = 0;
+                var totalDurationSettings = await _db.SystemSettings.FindAsync("TotalBookingDuration"); // Value e.g more than 2 pax add "30", "60"......
+                if (dto.Pax > 1)
+                {
+                    var additionalDuration = (totalDurationSettings != null && !string.IsNullOrEmpty(totalDurationSettings.Value)) ? int.Parse(totalDurationSettings.Value) : 30; // Default additional duration in minutes
+                    int totalPaxDuration = additionalDuration * (dto.Pax - 1);
+                    totalBookingDuration = Convert.ToInt32(existingService.EstimatedDurationMinutes) + totalPaxDuration;
+                }
+                else
+                {
+                    totalBookingDuration = Convert.ToInt32(existingService.EstimatedDurationMinutes);
+                }
+
+                // --- NEW OVERLAP CHECK ---
+                var newStartTime = dto.AppointmentTime;
+                var newEndTime = dto.AppointmentTime.Add(TimeSpan.FromMinutes(totalBookingDuration));
+
+                var dayBookings = await _db.Bookings
+                    .Include(b => b.Service)
+                    .Where(b => b.AppointmentDate.Date == dto.AppointmentDate.Date && b.Status == BookingStatus.Approved)
+                    .ToListAsync();
+
+                var conflictingBooking = dayBookings.FirstOrDefault(b =>
+                {
+                    var existingStartTime = b.AppointmentTime;
+                    var existingDuration = b.TotalDurationMinutes > 0 ? (double)b.TotalDurationMinutes : Convert.ToDouble(b.Service?.EstimatedDurationMinutes ?? 60);
+                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
+
+                    return existingStartTime < newEndTime && existingEndTime > newStartTime;
+                });
+
+                if (conflictingBooking != null)
+                {
+                    var existingStartTime = conflictingBooking.AppointmentTime;
+                    var existingDuration = conflictingBooking.TotalDurationMinutes > 0 ? (double)conflictingBooking.TotalDurationMinutes : Convert.ToDouble(conflictingBooking.Service?.EstimatedDurationMinutes ?? 60);
+                    var existingEndTime = existingStartTime.Add(TimeSpan.FromMinutes(existingDuration));
+
+                    return BadRequest(new
+                    {
+                        error = "Selected time slot is not available",
+                        message = $"Your selected time ({newStartTime:hh\\:mm} - {newEndTime:hh\\:mm}) overlaps with an existing booking ({existingStartTime:hh\\:mm} - {existingEndTime:hh\\:mm}). Please choose a different time."
+                    });
+                }
+                // -------------------------
 
                 decimal baseServicePrice = Convert.ToDecimal(existingService.Price * dto.Pax);
                 decimal rawTotalPrice = baseServicePrice + travelFee.TotalFee;
@@ -310,13 +337,14 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     Status = BookingStatus.Pending,
                     LocationAddress = dto.LocationAddress,
                     Unit = dto.Unit,
-                    DistanceKm = travelFee.DistanceKm,                   
+                    DistanceKm = travelFee.DistanceKm,
                     ServiceFee = existingService.Price,
                     TravelFee = travelFee.TotalFee,
                     TotalPrice = totalPrice,
                     CreatedAt = DateTime.Now,
                     AreaID = dto.AreaID,
                     Pax = dto.Pax,
+                    TotalDurationMinutes = totalBookingDuration
                 };
                 var responObj = new
                 {
@@ -326,10 +354,10 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                 idempotency.ResponseBody = JsonSerializer.Serialize(responObj);
                 idempotency.Status = "Completed";
                 idempotency.ResponseCode = 200;
-                _db.Bookings.Add(booking); 
+                _db.Bookings.Add(booking);
                 await _db.SaveChangesAsync();
 
-                _ = Task.Run(async() =>
+                _ = Task.Run(async () =>
                 {
                     using var scope = _serviceScopeFactory.CreateScope();
                     var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
@@ -378,7 +406,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                     message = "An error occurred while creating the booking"
                 });
                 await _db.SaveChangesAsync();
-                throw ex;
+                throw;
             }
         }
 
