@@ -35,19 +35,5 @@ namespace MakeUpServiceApi.InterfaceServices
                 throw; // Optionally rethrow or handle the exception as needed
             }
         }
-        public async Task<int> GetUnreadCountAsync()
-        {
-            try
-            {
-                return await _db.Notifications.AsNoTracking()
-                    .CountAsync(n => !n.IsRead);
-
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting unread notification count");
-                throw; // Optionally rethrow or handle the exception as needed
-            }
-        }
     }
 }

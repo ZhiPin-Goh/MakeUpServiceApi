@@ -22,7 +22,8 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
         [HttpGet("unreadcount")]
         public async Task<IActionResult> GetUnreadCount()
         {
-            var count = await _notificationService.GetUnreadCountAsync();
+            var count = await _db.Notifications.AsNoTracking()
+                .CountAsync(n => !n.IsRead);
             return Ok(count);
         }
         [HttpGet("unread")]
