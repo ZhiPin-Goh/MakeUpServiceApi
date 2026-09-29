@@ -287,11 +287,17 @@ namespace MakeUpServiceApi.Controllers.UserControllers
         #endregion
 
         [HttpPost("send")]
-        public async Task<IActionResult> AskAgent([FromBody] ChatRequestDto request)
+        public async Task<IActionResult> AskAgent([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
         {
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(90));
+            var requestToken = timeoutCts.Token;
+
             try
             {
-                var activeServices = await _db.Services.Where(s => s.Status == "Active").ToListAsync();
+                var activeServices = await _db.Services
+                    .Where(s => s.Status == "Active")
+                    .ToListAsync(requestToken);
                 string systemPrompt = SystemPrompt(activeServices);
 
                 var toolsDeclaration = new
@@ -417,12 +423,12 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                 });
 
                 string geminiApiKey = _config["GoogleSettings:ApiKey"];
-                var modelSetting = await _db.SystemSettings.FindAsync("GeminiModel");
+                var modelSetting = await _db.SystemSettings.FindAsync("GeminiModel", requestToken);
                 string selectedModel = !string.IsNullOrEmpty(modelSetting?.Value) ? modelSetting.Value : "gemini-3.1-flash-lite";
                 var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{selectedModel}:generateContent?key={geminiApiKey}";
 
                 var firstContent = new StringContent(JsonSerializer.Serialize(geminiPayload), Encoding.UTF8, "application/json");
-                var firstResponse = await _httpClient.PostAsync(requestUrl, firstContent);
+                var firstResponse = await _httpClient.PostAsync(requestUrl, firstContent, requestToken);
                 var firstResponseJson = await firstResponse.Content.ReadAsStringAsync();
 
                 if (!firstResponse.IsSuccessStatusCode)
@@ -492,6 +498,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
                             _logger.LogInformation("Round {Round}: Gemini requested tool: {ToolName}", round + 1, toolName);
 
                             var toolCallObj = new ToolCall { Tool = toolName, Args = argsDict };
+                            requestToken.ThrowIfCancellationRequested();
                             string toolResultJson = await _agentTools.ExecuteToolAsync(toolCallObj);
 
                             // Deserialize so it doesn't get double-escaped when sent back
@@ -527,7 +534,7 @@ namespace MakeUpServiceApi.Controllers.UserControllers
 
                     // 5. Send updated payload back to Gemini
                     var nextContent = new StringContent(JsonSerializer.Serialize(nextPayload), Encoding.UTF8, "application/json");
-                    var nextResponse = await _httpClient.PostAsync(requestUrl, nextContent);
+                    var nextResponse = await _httpClient.PostAsync(requestUrl, nextContent, requestToken);
                     var nextResponseJson = await nextResponse.Content.ReadAsStringAsync();
 
                     if (!nextResponse.IsSuccessStatusCode)
@@ -559,8 +566,27 @@ namespace MakeUpServiceApi.Controllers.UserControllers
 
                 return StatusCode(500, new { error = "AI exceeded maximum tool call rounds without providing a text response." });
             }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("Chat request timed out after 90 seconds.");
+                return StatusCode(StatusCodes.Status504GatewayTimeout, new
+                {
+                    error = "AI request timed out",
+                    message = "The AI service took too long to respond. Please try again."
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Chat request was cancelled by the client.");
+                return StatusCode(StatusCodes.Status499ClientClosedRequest, new
+                {
+                    error = "Request cancelled",
+                    message = "The chat request was cancelled."
+                });
+            }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Unexpected error while processing chat request.");
                 return StatusCode(500, new { error = "Internal Server Error", message = ex.Message, stackTrace = ex.ToString() });
             }
         }

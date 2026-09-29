@@ -116,5 +116,23 @@ namespace MakeUpServiceApi.Controllers.AdminControllers
                 feedback = feedback
             });
         }
+        [HttpPost("clear-resolve")]
+        public async Task<IActionResult> ClearResolveFeedback()
+        {
+            var resolvedFeedbacks = await _db.Feedbacks.Where(f => f.IsResolved).ToListAsync();
+            if (resolvedFeedbacks.Count == 0)
+            {
+                return Ok(new
+                {
+                    message = "No resolved feedbacks to delete"
+                });
+            }
+            _db.Feedbacks.RemoveRange(resolvedFeedbacks);
+            await _db.SaveChangesAsync();
+            return Ok(new
+            {
+                message = $"{resolvedFeedbacks.Count} resolved feedback(s) have been deleted"
+            });
+        }
     }
 } 
